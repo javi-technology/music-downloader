@@ -45,11 +45,30 @@ music-downloader/
 │   ├── src/
 │   │   ├── index.ts        # Ponto de entrada: exporta SOMENTE funções com prefixo `md`
 │   │   ├── config.ts       # IDs de todos os recursos isolados (database, bucket, região...)
+│   │   ├── domain/         # Tipos (Song, SearchResult) e portas (interfaces de I/O)
+│   │   ├── spotify/        # Parser de URL e cliente da Spotify Web API
+│   │   ├── matching/       # Matcher de resultados (lógica do spotDL)
+│   │   ├── pipeline/       # Orquestração por faixa: busca → match → download → tags → upload
+│   │   ├── jobs/           # Casos de uso: criar job, executar faixa
+│   │   ├── adapters/       # Implementações das portas (YT Music, yt-dlp, ID3, Firestore, Storage)
+│   │   ├── http/           # Mapeamento de erros de domínio → HttpsError
 │   │   └── **/*.spec.ts    # Testes ao lado do código testado
+│   ├── scripts/fetch-binaries.sh  # Baixa yt-dlp/ffmpeg no build da função (`gcp-build`)
 │   └── vitest.config.ts
 └── web/                    # Frontend — Angular + Tailwind
     └── src/app/            # Componentes, serviços e rotas (testes *.spec.ts ao lado)
 ```
+
+## Arquitetura do backend
+
+- `mdCreateDownloadJob` (callable, autenticada): recebe `{ url }`, busca as faixas no Spotify e cria
+  `downloadJobs/{jobId}` + `downloadJobs/{jobId}/tracks/{000..}` com status `pending`.
+- `mdProcessTrack` (trigger `onDocumentCreated` em `tracks`): processa **uma faixa por invocação**
+  (`concurrency: 1`), atualiza o status (`processing` → `done`/`failed`) e os contadores do job.
+- Arquivos: `music-downloader/users/{uid}/{jobId}/<Artistas> - <Título>.mp3`.
+- Binários: `yt-dlp` e `ffmpeg` standalone são baixados em `functions/bin` durante o build na nuvem.
+  Localmente, instale com `brew install yt-dlp ffmpeg` (ou defina `YT_DLP_PATH` / `FFMPEG_PATH`).
+- Domínio puro (matcher, pipeline, casos de uso) **não** importa SDKs: dependências entram por portas.
 
 ## Projeto Firebase compartilhado — isolamento OBRIGATÓRIO
 

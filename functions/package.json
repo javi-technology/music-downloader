@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "serve": "npm run build && firebase emulators:start --only functions",
-    "deploy": "firebase deploy --only functions:music-downloader"
+    "deploy": "firebase deploy --only functions:music-downloader",
+    "gcp-build": "bash scripts/fetch-binaries.sh"
   },
   "dependencies": {
     "firebase-admin": "^14.5.0",
