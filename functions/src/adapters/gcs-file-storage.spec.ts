@@ -13,8 +13,24 @@ describe("GcsFileStorage", () => {
       destination: "music-downloader/users/u/j/000/a.mp3",
       contentType: "audio/mpeg",
       resumable: false,
-      metadata: { metadata: { firebaseStorageDownloadTokens: "token-fixo" } },
+      metadata: {
+        contentDisposition: `attachment; filename="a.mp3"; filename*=UTF-8''a.mp3`,
+        metadata: { firebaseStorageDownloadTokens: "token-fixo" },
+      },
     });
+  });
+
+  it("faz o navegador salvar o arquivo só com o nome da música, mesmo com acentos", async () => {
+    const bucket = { upload: vi.fn().mockResolvedValue(undefined) };
+    await new GcsFileStorage(bucket).upload(
+      "/tmp/a.mp3",
+      "music-downloader/users/u/j/000/De Toda Cor (Ação).mp3",
+    );
+
+    const [, options] = bucket.upload.mock.calls[0];
+    expect(options.metadata.contentDisposition).toBe(
+      `attachment; filename="De Toda Cor (A__o).mp3"; filename*=UTF-8''De%20Toda%20Cor%20%28A%C3%A7%C3%A3o%29.mp3`,
+    );
   });
 
   it("gera um token diferente por arquivo por padrão", async () => {
