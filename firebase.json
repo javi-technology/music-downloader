@@ -24,6 +24,7 @@
   "hosting": [
     {
       "target": "music-downloader",
+      "predeploy": ["npm --prefix web run build"],
       "public": "web/dist/web/browser",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [{ "source": "**", "destination": "/index.html" }]
