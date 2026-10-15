@@ -113,10 +113,11 @@ function toSong(track: SpotifyTrack): Song {
     artists: track.artists.map((artist) => artist.name),
     album: album?.name ?? '',
     durationSeconds: track.duration_ms / 1000,
-    explicit: track.explicit,
-    trackNumber: track.track_number,
-    releaseYear: album?.release_date?.slice(0, 4),
-    coverUrl: cover?.url,
-    isrc: track.external_ids?.isrc,
+    // Firestore rejeita `undefined`: campos opcionais só entram quando existem.
+    ...(track.explicit !== undefined ? { explicit: track.explicit } : {}),
+    ...(track.track_number !== undefined ? { trackNumber: track.track_number } : {}),
+    ...(album?.release_date ? { releaseYear: album.release_date.slice(0, 4) } : {}),
+    ...(cover?.url ? { coverUrl: cover.url } : {}),
+    ...(track.external_ids?.isrc ? { isrc: track.external_ids.isrc } : {}),
   };
 }
