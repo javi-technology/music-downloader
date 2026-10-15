@@ -16,7 +16,7 @@ export class FakeJobsGateway extends JobsGateway {
   createJob = vi.fn(async (_url: string) => ({ jobId: 'novo', totalTracks: 1 }));
   watchJobs = vi.fn(() => this.jobs$.asObservable());
   watchTracks = vi.fn((_jobId: string) => this.tracks$.asObservable());
-  getDownloadUrl = vi.fn(async (path: string) => `https://storage/${path}`);
+  downloadUrl = vi.fn((jobId: string, trackId: string) => `/api/jobs/${jobId}/tracks/${trackId}/file`);
 }
 
 export function makeJob(overrides: Partial<DownloadJob> = {}): DownloadJob {
@@ -38,7 +38,7 @@ export function makeTrack(overrides: Partial<JobTrack> = {}): JobTrack {
     position: 0,
     status: 'done',
     song: { name: 'Blinding Lights', artists: ['The Weeknd'], album: 'After Hours' },
-    storagePath: 'music-downloader/users/u/j1/The Weeknd - Blinding Lights.mp3',
+    storagePath: '/Users/ana/Music/Music Downloader/After Hours/Blinding Lights.mp3',
     ...overrides,
   };
 }

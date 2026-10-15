@@ -52,19 +52,17 @@ describe('JobCard', () => {
     expect(items[0].textContent).toContain('Concluída');
     expect(items[1].textContent).toContain('Falhou');
     expect(items[1].textContent).toContain('Nenhuma correspondência');
-    expect(items[1].querySelector('button')).toBeNull();
+    expect(items[1].querySelector('a')).toBeNull();
   });
 
-  it('abre o link de download da faixa concluída', async () => {
-    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+  it('oferece o link direto do MP3 da faixa concluída', async () => {
     const fixture = await render();
     gateway.tracks$.next([makeTrack()]);
     await fixture.whenStable();
 
-    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('li button')!.click();
-    await fixture.whenStable();
-
-    expect(gateway.getDownloadUrl).toHaveBeenCalledWith(makeTrack().storagePath);
-    expect(open).toHaveBeenCalledWith(`https://storage/${makeTrack().storagePath}`, '_blank');
+    const link = (fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('li a')!;
+    expect(link.getAttribute('href')).toBe('/api/jobs/j1/tracks/000/file');
+    expect(link.hasAttribute('download')).toBe(true);
+    expect(link.title).toContain(makeTrack().storagePath);
   });
 });
