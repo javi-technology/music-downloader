@@ -52,20 +52,24 @@ export function pickBestMatch(
 
 /**
  * Busca por ISRC, como no spotDL: o YouTube Music costuma devolver a gravação exata, mas lista só
- * o artista principal, e a média com convidados reprovaria a faixa no `scoreResult`. Por isso basta
- * que o resultado verificado tenha título, artista principal e duração compatíveis.
+ * parte dos artistas (o principal sem convidados; em música clássica, a orquestra sem o compositor),
+ * e a média reprovaria a faixa no `scoreResult`. Por isso basta que o resultado verificado tenha
+ * título, duração e ao menos um artista compatíveis.
  */
 export function pickIsrcMatch(
   song: Song,
   results: SearchResult[],
 ): ScoredResult | null {
-  const mainArtist = slugify(song.artists[0] ?? "");
+  const songArtists = song.artists.map(slugify);
   const match = results.find(
     (result) =>
       result.verified &&
       hasCommonWord(song.name, result.name) &&
-      result.artists.some(
-        (artist) => ratio(mainArtist, slugify(artist)) >= MIN_ARTISTS_MATCH,
+      result.artists.some((artist) =>
+        songArtists.some(
+          (songArtist) =>
+            ratio(songArtist, slugify(artist)) >= MIN_ARTISTS_MATCH,
+        ),
       ) &&
       timeScore(song, result) >= MIN_TIME_MATCH,
   );
