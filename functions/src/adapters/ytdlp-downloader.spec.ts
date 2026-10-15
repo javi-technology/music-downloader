@@ -7,7 +7,7 @@ describe("buildYtDlpArgs", () => {
       "--no-playlist",
       "--no-progress",
       "-f",
-      "bestaudio",
+      "bestaudio/best",
       "-x",
       "--audio-format",
       "mp3",
@@ -52,5 +52,42 @@ describe("YtDlpDownloader", () => {
       run,
     });
     await expect(downloader.download("abc", "/tmp")).rejects.toThrow(/yt-dlp/);
+  });
+
+  it("tenta de novo quando o yt-dlp falha (YouTube às vezes só oferece SABR)", async () => {
+    const run = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Requested format is not available"))
+      .mockResolvedValueOnce({ stdout: "/tmp/out/abc.mp3\n" });
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const downloader = new YtDlpDownloader({
+      ytDlpPath: "y",
+      ffmpegPath: "f",
+      run,
+      sleep,
+    });
+
+    expect(await downloader.download("abc", "/tmp/out")).toBe(
+      "/tmp/out/abc.mp3",
+    );
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledTimes(1);
+  });
+
+  it("desiste após 3 tentativas e propaga o último erro", async () => {
+    const run = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("falha 1"))
+      .mockRejectedValueOnce(new Error("falha 2"))
+      .mockRejectedValueOnce(new Error("falha 3"));
+    const downloader = new YtDlpDownloader({
+      ytDlpPath: "y",
+      ffmpegPath: "f",
+      run,
+      sleep: vi.fn().mockResolvedValue(undefined),
+    });
+
+    await expect(downloader.download("abc", "/tmp")).rejects.toThrow("falha 3");
+    expect(run).toHaveBeenCalledTimes(3);
   });
 });
