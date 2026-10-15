@@ -36,18 +36,27 @@ export class TrackQueue {
   }
 
   private async drain(): Promise<void> {
+    let failed: PendingTrack | undefined;
     for (
       let track = this.deps.repository.nextPendingTrack();
-      track;
+      track && !isSameTrack(track, failed);
       track = this.deps.repository.nextPendingTrack()
     ) {
+      failed = undefined;
       try {
         await this.deps.process(track);
       } catch (error) {
+        // A faixa pode continuar `pending` (ex.: erro antes de reivindicá-la); sem esta guarda,
+        // a fila a repetiria sem fim. Um novo `notify()` tenta de novo.
+        failed = track;
         this.deps.onError?.(error, track);
       }
     }
   }
+}
+
+function isSameTrack(a: PendingTrack, b: PendingTrack | undefined): boolean {
+  return !!b && a.jobId === b.jobId && a.trackId === b.trackId;
 }
 
 /** Pasta do job dentro da pasta de músicas: o nome do álbum/playlist, ou a raiz para faixa avulsa. */
