@@ -1,0 +1,105 @@
+import type { SearchResult, Song } from '../domain/types.js';
+import { ratio, slugify } from './text.js';
+
+/**
+ * Pontuação de resultados inspirada em `spotdl/utils/matching.py` (spotDL, licença MIT):
+ * combina similaridade de artistas, título, álbum e duração, descartando
+ * resultados abaixo dos mesmos limiares usados pelo spotDL.
+ */
+
+const FORBIDDEN_WORDS = [
+  'bassboosted', 'remix', 'remastered', 'remaster', 'reverb', 'bassboost', 'live',
+  'acoustic', '8daudio', 'concert', 'acapella', 'slowed', 'instrumental', 'cover',
+];
+
+const MIN_NAME_MATCH = 60;
+const MIN_ARTISTS_MATCH = 70;
+const MIN_TIME_MATCH = 25;
+
+export interface ScoredResult {
+  result: SearchResult;
+  score: number;
+}
+
+export function pickBestMatch(song: Song, results: SearchResult[]): ScoredResult | null {
+  let best: ScoredResult | null = null;
+  for (const result of results) {
+    const score = scoreResult(song, result);
+    if (score !== null && (best === null || score > best.score)) best = { result, score };
+  }
+  return best;
+}
+
+export function scoreResult(song: Song, result: SearchResult): number | null {
+  if (!hasCommonWord(song.name, result.name)) return null;
+
+  const artistsMatch = artistsScore(song, result);
+  const nameMatch = nameScore(song, result) - 15 * forbiddenWordsIn(song.name, result.name).length;
+  const timeMatch = Math.exp(-0.1 * Math.abs(song.durationSeconds - result.durationSeconds)) * 100;
+
+  if (nameMatch <= MIN_NAME_MATCH || artistsMatch < MIN_ARTISTS_MATCH || timeMatch < MIN_TIME_MATCH) return null;
+
+  let average = (artistsMatch + nameMatch) / 2;
+
+  if (result.verified && result.album && song.album) {
+    const albumMatch = ratio(slugify(song.album), slugify(result.album));
+    if (albumMatch <= 80) average = (average + albumMatch) / 2;
+  }
+
+  if (timeMatch < 50 && average < 75) return null;
+
+  if (average <= 85) {
+    average = (average + timeMatch) / 2;
+    if (song.explicit !== undefined && result.explicit !== undefined && song.explicit !== result.explicit) {
+      average -= 5;
+    }
+  }
+
+  return Math.min(average, 100);
+}
+
+function words(value: string): string[] {
+  return slugify(value).split('-').filter(Boolean);
+}
+
+function sortedSlug(value: string): string {
+  return words(value).sort().join('-');
+}
+
+function hasCommonWord(songName: string, resultName: string): boolean {
+  const haystack = slugify(resultName).replaceAll('-', '');
+  return words(songName).some((word) => haystack.includes(word));
+}
+
+function forbiddenWordsIn(songName: string, resultName: string): string[] {
+  const original = slugify(songName).replaceAll('-', '');
+  const candidate = slugify(resultName).replaceAll('-', '');
+  return FORBIDDEN_WORDS.filter((word) => candidate.includes(word) && !original.includes(word));
+}
+
+function nameScore(song: Song, result: SearchResult): number {
+  const direct = ratio(sortedSlug(result.name), sortedSlug(song.name));
+  if (direct > 75) return direct;
+
+  // Vídeos costumam vir como "Artista - Título": compara incluindo os artistas.
+  const songTitle = sortedSlug(`${song.artists.join(' ')} ${song.name}`);
+  const resultTitle = sortedSlug(`${result.artists.join(' ')} ${result.name}`);
+  return Math.max(direct, ratio(resultTitle, songTitle));
+}
+
+function artistsScore(song: Song, result: SearchResult): number {
+  const songArtists = song.artists.map(slugify);
+  const resultArtists = result.artists.map(slugify);
+
+  const best = (artist: string) => Math.max(0, ...resultArtists.map((candidate) => ratio(artist, candidate)));
+  let score = resultArtists.length === 0 ? 0 : songArtists.reduce((sum, artist) => sum + best(artist), 0) / songArtists.length;
+
+  // Resultado sem artistas compatíveis: aceita se os artistas aparecem no título.
+  if (score < MIN_ARTISTS_MATCH) {
+    const title = slugify(result.name);
+    const found = songArtists.filter((artist) => title.includes(artist)).length;
+    score = Math.max(score, (found / songArtists.length) * 100);
+  }
+
+  return score;
+}
