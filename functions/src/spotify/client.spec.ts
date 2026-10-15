@@ -77,6 +77,18 @@ describe('SpotifyClient', () => {
     ]);
   });
 
+  it('omite metadados ausentes em vez de usar undefined', async () => {
+    const { external_ids: _e, explicit: _x, track_number: _n, ...bare } = track('a');
+    routes({ '/tracks/a': { ...bare, album: { name: 'Single', images: [] } } });
+
+    const [song] = await client.getSongs({ type: 'track', id: 'a' });
+
+    expect(Object.values(song)).not.toContain(undefined);
+    expect(song).not.toHaveProperty('isrc');
+    expect(song).not.toHaveProperty('coverUrl');
+    expect(song).not.toHaveProperty('releaseYear');
+  });
+
   it('busca todas as faixas de um álbum (paginado) com os dados do álbum', async () => {
     const simplified = (id: string) => {
       const { album: _a, external_ids: _e, ...rest } = track(id);
