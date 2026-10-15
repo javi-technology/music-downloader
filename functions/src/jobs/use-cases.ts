@@ -26,7 +26,7 @@ export async function createDownloadJob(
   deps: { songs: SongSource; repository: JobRepository },
 ): Promise<{ jobId: string; totalTracks: number }> {
   const source = parseSpotifyUrl(input.url);
-  const songs = await deps.songs.getSongs(source);
+  const { title, songs } = await deps.songs.getCollection(source);
 
   if (songs.length === 0) throw new EmptySourceError();
   if (songs.length > MAX_TRACKS_PER_JOB)
@@ -36,6 +36,7 @@ export async function createDownloadJob(
     ownerUid: input.ownerUid,
     sourceUrl: input.url,
     source,
+    ...(title ? { title } : {}),
     songs,
   });
   return { jobId, totalTracks: songs.length };

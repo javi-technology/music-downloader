@@ -58,8 +58,8 @@ describe("SpotifyClient", () => {
 
   it("autentica com client credentials (Basic auth) e reutiliza o token", async () => {
     routes({ "/tracks/a": track("a"), "/tracks/b": track("b") });
-    await client.getSongs({ type: "track", id: "a" });
-    await client.getSongs({ type: "track", id: "b" });
+    (await client.getCollection({ type: "track", id: "a" })).songs;
+    (await client.getCollection({ type: "track", id: "b" })).songs;
 
     const tokenCalls = fetchMock.mock.calls.filter(([url]) =>
       String(url).includes("accounts.spotify.com"),
@@ -81,7 +81,9 @@ describe("SpotifyClient", () => {
 
   it("mapeia uma faixa para Song", async () => {
     routes({ "/tracks/a": track("a") });
-    expect(await client.getSongs({ type: "track", id: "a" })).toEqual([
+    expect(
+      (await client.getCollection({ type: "track", id: "a" })).songs,
+    ).toEqual([
       {
         spotifyId: "a",
         name: "Track a",
@@ -106,7 +108,8 @@ describe("SpotifyClient", () => {
     } = track("a");
     routes({ "/tracks/a": { ...bare, album: { name: "Single", images: [] } } });
 
-    const [song] = await client.getSongs({ type: "track", id: "a" });
+    const [song] = (await client.getCollection({ type: "track", id: "a" }))
+      .songs;
 
     expect(Object.values(song)).not.toContain(undefined);
     expect(song).not.toHaveProperty("isrc");
@@ -133,7 +136,8 @@ describe("SpotifyClient", () => {
       },
     });
 
-    const songs = await client.getSongs({ type: "album", id: "x" });
+    const songs = (await client.getCollection({ type: "album", id: "x" }))
+      .songs;
     expect(songs.map((s) => s.spotifyId)).toEqual(["1", "2"]);
     expect(songs[1].album).toBe("After Hours");
     expect(songs[1].coverUrl).toBe("https://img/large.jpg");
@@ -141,6 +145,7 @@ describe("SpotifyClient", () => {
 
   it("busca todas as faixas de uma playlist ignorando itens vazios, locais e episódios", async () => {
     routes({
+      "/playlists/p?fields=name": { name: "P" },
       "/playlists/p/tracks?limit=100": {
         items: [
           { track: track("1") },
@@ -158,7 +163,8 @@ describe("SpotifyClient", () => {
       },
     });
 
-    const songs = await client.getSongs({ type: "playlist", id: "p" });
+    const songs = (await client.getCollection({ type: "playlist", id: "p" }))
+      .songs;
     expect(songs.map((s) => s.spotifyId)).toEqual(["1", "2"]);
   });
 
@@ -206,7 +212,7 @@ describe("SpotifyClient", () => {
   it("lança erro descritivo quando a API falha", async () => {
     routes({});
     await expect(
-      client.getSongs({ type: "track", id: "nope" }),
+      client.getCollection({ type: "track", id: "nope" }),
     ).rejects.toThrow(/Spotify API 404/);
   });
 });

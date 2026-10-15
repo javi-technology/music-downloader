@@ -160,13 +160,11 @@ describe("runTrack", () => {
     repository.completeTrack.mockRejectedValue(
       new Error("firestore indisponível"),
     );
-    const process = vi
-      .fn()
-      .mockResolvedValue({
-        storagePath: "p/007/x.mp3",
-        videoId: "v",
-        score: 95,
-      });
+    const process = vi.fn().mockResolvedValue({
+      storagePath: "p/007/x.mp3",
+      videoId: "v",
+      score: 95,
+    });
 
     await expect(runTrack(input, { repository, process })).rejects.toThrow(
       "firestore indisponível",
