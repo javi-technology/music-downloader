@@ -36,7 +36,8 @@ export function jobProgress(job: DownloadJob): JobProgress {
   let status: JobStatus = 'processing';
   if (finished === 0) status = 'pending';
   else if (finished >= total) {
-    status = job.failedTracks === 0 ? 'done' : job.completedTracks === 0 ? 'failed' : 'done-with-errors';
+    status =
+      job.failedTracks === 0 ? 'done' : job.completedTracks === 0 ? 'failed' : 'done-with-errors';
   }
 
   return { finished, total, percent, status };

@@ -1,101 +1,153 @@
-import { describe, expect, it } from 'vitest';
-import type { SearchResult, Song } from '../domain/types.js';
-import { pickBestMatch, scoreResult } from './matcher.js';
+import { describe, expect, it } from "vitest";
+import type { SearchResult, Song } from "../domain/types.js";
+import { pickBestMatch, scoreResult } from "./matcher.js";
 
 const song: Song = {
-  spotifyId: 'sp1',
-  name: 'Blinding Lights',
-  artists: ['The Weeknd'],
-  album: 'After Hours',
+  spotifyId: "sp1",
+  name: "Blinding Lights",
+  artists: ["The Weeknd"],
+  album: "After Hours",
   durationSeconds: 200,
 };
 
 const result = (overrides: Partial<SearchResult> = {}): SearchResult => ({
-  videoId: 'yt1',
-  name: 'Blinding Lights',
-  artists: ['The Weeknd'],
-  album: 'After Hours',
+  videoId: "yt1",
+  name: "Blinding Lights",
+  artists: ["The Weeknd"],
+  album: "After Hours",
   durationSeconds: 200,
   verified: true,
   ...overrides,
 });
 
-describe('scoreResult', () => {
-  it('dá nota alta para o resultado idêntico', () => {
+describe("scoreResult", () => {
+  it("dá nota alta para o resultado idêntico", () => {
     expect(scoreResult(song, result())).toBeGreaterThanOrEqual(90);
   });
 
-  it('descarta resultados sem nenhuma palavra em comum no título', () => {
-    expect(scoreResult(song, result({ name: 'Something Else' }))).toBeNull();
+  it("descarta resultados sem nenhuma palavra em comum no título", () => {
+    expect(scoreResult(song, result({ name: "Something Else" }))).toBeNull();
   });
 
-  it('descarta resultados de outro artista', () => {
-    expect(scoreResult(song, result({ artists: ['Coldplay'] }))).toBeNull();
+  it("descarta resultados de outro artista", () => {
+    expect(scoreResult(song, result({ artists: ["Coldplay"] }))).toBeNull();
   });
 
-  it('descarta resultados com duração muito diferente', () => {
+  it("descarta resultados com duração muito diferente", () => {
     expect(scoreResult(song, result({ durationSeconds: 260 }))).toBeNull();
   });
 
-  it('penaliza palavras proibidas (remix, live...) ausentes no título original', () => {
+  it("penaliza palavras proibidas (remix, live...) ausentes no título original", () => {
     const original = scoreResult(song, result())!;
-    const remix = scoreResult(song, result({ name: 'Blinding Lights (Remix)' }));
+    const remix = scoreResult(
+      song,
+      result({ name: "Blinding Lights (Remix)" }),
+    );
     expect(remix === null || remix < original).toBe(true);
   });
 
-  it('não penaliza palavra proibida que já existe no título original', () => {
-    const live: Song = { ...song, name: 'Blinding Lights (Live)' };
-    expect(scoreResult(live, result({ name: 'Blinding Lights (Live)' }))).toBeGreaterThanOrEqual(90);
+  it("não penaliza palavra proibida que já existe no título original", () => {
+    const live: Song = { ...song, name: "Blinding Lights (Live)" };
+    expect(
+      scoreResult(live, result({ name: "Blinding Lights (Live)" })),
+    ).toBeGreaterThanOrEqual(90);
   });
 
-  it('aceita artista presente apenas no título (vídeos sem artistas)', () => {
-    const score = scoreResult(song, result({ name: 'The Weeknd - Blinding Lights', artists: [], verified: false }));
+  it("aceita artista presente apenas no título (vídeos sem artistas)", () => {
+    const score = scoreResult(
+      song,
+      result({
+        name: "The Weeknd - Blinding Lights",
+        artists: [],
+        verified: false,
+      }),
+    );
     expect(score).not.toBeNull();
   });
 
-  it('ignora acentos e caixa', () => {
-    const br: Song = { ...song, name: 'Garota de Ipanema', artists: ['João Gilberto'], album: 'X' };
-    expect(scoreResult(br, result({ name: 'garota de ipanema', artists: ['Joao Gilberto'], album: 'X' }))).toBeGreaterThanOrEqual(90);
+  it("ignora acentos e caixa", () => {
+    const br: Song = {
+      ...song,
+      name: "Garota de Ipanema",
+      artists: ["João Gilberto"],
+      album: "X",
+    };
+    expect(
+      scoreResult(
+        br,
+        result({
+          name: "garota de ipanema",
+          artists: ["Joao Gilberto"],
+          album: "X",
+        }),
+      ),
+    ).toBeGreaterThanOrEqual(90);
   });
 
-  it('não penaliza faixa oficial lançada como single (álbum diferente do Spotify)', () => {
-    expect(scoreResult(song, result({ album: 'Blinding Lights', durationSeconds: 202 }))).toBeGreaterThanOrEqual(90);
+  it("não penaliza faixa oficial lançada como single (álbum diferente do Spotify)", () => {
+    expect(
+      scoreResult(
+        song,
+        result({ album: "Blinding Lights", durationSeconds: 202 }),
+      ),
+    ).toBeGreaterThanOrEqual(90);
   });
 
-  it('nunca passa de 100', () => {
+  it("nunca passa de 100", () => {
     expect(scoreResult(song, result())).toBeLessThanOrEqual(100);
   });
 });
 
-describe('pickBestMatch', () => {
-  it('retorna null sem resultados válidos', () => {
+describe("pickBestMatch", () => {
+  it("retorna null sem resultados válidos", () => {
     expect(pickBestMatch(song, [])).toBeNull();
-    expect(pickBestMatch(song, [result({ artists: ['Coldplay'] })])).toBeNull();
+    expect(pickBestMatch(song, [result({ artists: ["Coldplay"] })])).toBeNull();
   });
 
-  it('escolhe o melhor resultado entre vários', () => {
+  it("escolhe o melhor resultado entre vários", () => {
     const best = pickBestMatch(song, [
-      result({ videoId: 'remix', name: 'Blinding Lights (Remix)' }),
-      result({ videoId: 'longe', durationSeconds: 215 }),
-      result({ videoId: 'certo' }),
+      result({ videoId: "remix", name: "Blinding Lights (Remix)" }),
+      result({ videoId: "longe", durationSeconds: 215 }),
+      result({ videoId: "certo" }),
     ]);
-    expect(best?.result.videoId).toBe('certo');
+    expect(best?.result.videoId).toBe("certo");
     expect(best?.score).toBeGreaterThanOrEqual(90);
   });
 
   it('prefere a faixa oficial (verificada) a uploads de terceiros com título "Artista - Música"', () => {
     const best = pickBestMatch(song, [
-      result({ videoId: 'upload', name: 'The Weeknd - Blinding Lights (Lyrics)', artists: ['4Words'], album: undefined, verified: false, durationSeconds: 200 }),
-      result({ videoId: 'oficial', album: 'Blinding Lights', durationSeconds: 202 }),
+      result({
+        videoId: "upload",
+        name: "The Weeknd - Blinding Lights (Lyrics)",
+        artists: ["4Words"],
+        album: undefined,
+        verified: false,
+        durationSeconds: 200,
+      }),
+      result({
+        videoId: "oficial",
+        album: "Blinding Lights",
+        durationSeconds: 202,
+      }),
     ]);
-    expect(best?.result.videoId).toBe('oficial');
+    expect(best?.result.videoId).toBe("oficial");
   });
 
-  it('usa vídeo não verificado quando não há faixa oficial compatível', () => {
+  it("usa vídeo não verificado quando não há faixa oficial compatível", () => {
     const best = pickBestMatch(song, [
-      result({ videoId: 'outra', name: 'Blinding Lights', artists: ['Cover Band'] }),
-      result({ videoId: 'video', name: 'The Weeknd - Blinding Lights', artists: [], album: undefined, verified: false }),
+      result({
+        videoId: "outra",
+        name: "Blinding Lights",
+        artists: ["Cover Band"],
+      }),
+      result({
+        videoId: "video",
+        name: "The Weeknd - Blinding Lights",
+        artists: [],
+        album: undefined,
+        verified: false,
+      }),
     ]);
-    expect(best?.result.videoId).toBe('video');
+    expect(best?.result.videoId).toBe("video");
   });
 });

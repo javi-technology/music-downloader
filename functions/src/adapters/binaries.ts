@@ -1,7 +1,7 @@
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
-const ENV_VARS = { 'yt-dlp': 'YT_DLP_PATH', ffmpeg: 'FFMPEG_PATH' } as const;
+const ENV_VARS = { "yt-dlp": "YT_DLP_PATH", ffmpeg: "FFMPEG_PATH" } as const;
 
 export type BinaryName = keyof typeof ENV_VARS;
 
@@ -11,7 +11,11 @@ export type BinaryName = keyof typeof ENV_VARS;
  */
 export function resolveBinary(
   name: BinaryName,
-  options: { env?: Record<string, string | undefined>; binDir: string; exists?: (path: string) => boolean },
+  options: {
+    env?: Record<string, string | undefined>;
+    binDir: string;
+    exists?: (path: string) => boolean;
+  },
 ): string {
   const fromEnv = (options.env ?? process.env)[ENV_VARS[name]];
   if (fromEnv) return fromEnv;

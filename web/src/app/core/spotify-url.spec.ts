@@ -11,7 +11,12 @@ describe('isSpotifyUrl', () => {
     expect(isSpotifyUrl(url)).toBe(true);
   });
 
-  it.each(['', 'https://example.com/track/abc', 'https://open.spotify.com/artist/abc', 'spotify:episode:abc'])('rejeita "%s"', (url) => {
+  it.each([
+    '',
+    'https://example.com/track/abc',
+    'https://open.spotify.com/artist/abc',
+    'spotify:episode:abc',
+  ])('rejeita "%s"', (url) => {
     expect(isSpotifyUrl(url)).toBe(false);
   });
 });

@@ -8,7 +8,10 @@ describe('JobCard', () => {
 
   async function render(job = makeJob()) {
     gateway = new FakeJobsGateway();
-    await TestBed.configureTestingModule({ imports: [JobCard], providers: [{ provide: JobsGateway, useValue: gateway }] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [JobCard],
+      providers: [{ provide: JobsGateway, useValue: gateway }],
+    }).compileComponents();
     const fixture = TestBed.createComponent(JobCard);
     fixture.componentRef.setInput('job', job);
     await fixture.whenStable();
@@ -20,7 +23,11 @@ describe('JobCard', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent!;
     expect(text).toContain('Álbum');
     expect(text).toContain('2/4');
-    expect((fixture.nativeElement as HTMLElement).querySelector('[role=progressbar]')?.getAttribute('aria-valuenow')).toBe('50');
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('[role=progressbar]')
+        ?.getAttribute('aria-valuenow'),
+    ).toBe('50');
   });
 
   it('lista as faixas do job com status', async () => {
@@ -29,7 +36,13 @@ describe('JobCard', () => {
 
     gateway.tracks$.next([
       makeTrack(),
-      makeTrack({ id: '001', status: 'failed', error: 'Nenhuma correspondência', storagePath: undefined, song: { name: 'X', artists: ['Y'], album: 'Z' } }),
+      makeTrack({
+        id: '001',
+        status: 'failed',
+        error: 'Nenhuma correspondência',
+        storagePath: undefined,
+        song: { name: 'X', artists: ['Y'], album: 'Z' },
+      }),
     ]);
     await fixture.whenStable();
 

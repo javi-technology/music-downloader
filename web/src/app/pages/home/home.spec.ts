@@ -44,8 +44,12 @@ describe('Home', () => {
   it('desabilita o envio para URL inválida e mostra aviso', async () => {
     const fixture = await render();
     await type(fixture, 'https://example.com/x');
-    expect(el(fixture).querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(true);
-    expect(el(fixture).textContent).toContain('Cole um link de faixa, álbum ou playlist do Spotify');
+    expect(el(fixture).querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(
+      true,
+    );
+    expect(el(fixture).textContent).toContain(
+      'Cole um link de faixa, álbum ou playlist do Spotify',
+    );
   });
 
   it('cria o job para URL válida e limpa o campo', async () => {
@@ -62,13 +66,17 @@ describe('Home', () => {
 
   it('mostra o erro retornado pelo backend', async () => {
     const fixture = await render();
-    jobs.createJob.mockRejectedValueOnce(new Error('Nenhuma faixa encontrada para a URL informada'));
+    jobs.createJob.mockRejectedValueOnce(
+      new Error('Nenhuma faixa encontrada para a URL informada'),
+    );
     await type(fixture, 'spotify:playlist:p');
 
     el(fixture).querySelector('form')!.dispatchEvent(new Event('submit'));
     await fixture.whenStable();
 
-    expect(el(fixture).querySelector('[role=alert]')?.textContent).toContain('Nenhuma faixa encontrada');
+    expect(el(fixture).querySelector('[role=alert]')?.textContent).toContain(
+      'Nenhuma faixa encontrada',
+    );
   });
 
   it('lista os jobs do usuário', async () => {

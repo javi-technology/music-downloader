@@ -1,7 +1,7 @@
-import type { Song } from '../domain/types.js';
-import type { SpotifyResource } from '../spotify/url.js';
+import type { Song } from "../domain/types.js";
+import type { SpotifyResource } from "../spotify/url.js";
 
-export type TrackStatus = 'pending' | 'processing' | 'done' | 'failed';
+export type TrackStatus = "pending" | "processing" | "done" | "failed";
 
 export interface NewJob {
   ownerUid: string;
@@ -19,7 +19,11 @@ export interface JobRepository {
    */
   claimTrack(jobId: string, trackId: string): Promise<boolean>;
   /** `processing` → `done` + incremento do contador, atomicamente; no-op em qualquer outro status. */
-  completeTrack(jobId: string, trackId: string, result: { storagePath: string; videoId: string; score: number }): Promise<void>;
+  completeTrack(
+    jobId: string,
+    trackId: string,
+    result: { storagePath: string; videoId: string; score: number },
+  ): Promise<void>;
   /** `processing` → `failed` + incremento do contador, atomicamente; no-op em qualquer outro status. */
   failTrack(jobId: string, trackId: string, error: string): Promise<void>;
 }

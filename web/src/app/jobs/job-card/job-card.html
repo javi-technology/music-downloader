@@ -1,11 +1,15 @@
 <article class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
   <header class="flex items-center justify-between gap-4">
     <div class="min-w-0">
-      <p class="text-xs font-medium uppercase tracking-wide text-emerald-400">{{ sourceLabel() }}</p>
+      <p class="text-xs font-medium uppercase tracking-wide text-emerald-400">
+        {{ sourceLabel() }}
+      </p>
       <p class="truncate text-sm text-zinc-400" [title]="job().sourceUrl">{{ job().sourceUrl }}</p>
     </div>
     <div class="shrink-0 text-right">
-      <p class="text-sm font-semibold tabular-nums">{{ progress().finished }}/{{ progress().total }}</p>
+      <p class="text-sm font-semibold tabular-nums">
+        {{ progress().finished }}/{{ progress().total }}
+      </p>
       @if (job().createdAt; as createdAt) {
         <p class="text-xs text-zinc-500">{{ createdAt | date: 'short' }}</p>
       }
@@ -20,7 +24,10 @@
     aria-valuemax="100"
     [attr.aria-valuenow]="progress().percent"
   >
-    <div class="h-full rounded-full bg-emerald-500 transition-all" [style.width.%]="progress().percent"></div>
+    <div
+      class="h-full rounded-full bg-emerald-500 transition-all"
+      [style.width.%]="progress().percent"
+    ></div>
   </div>
 
   @if (tracks().length) {
@@ -28,8 +35,14 @@
       @for (track of tracks(); track track.id) {
         <li class="flex items-center justify-between gap-3 py-2">
           <div class="min-w-0">
-            <p class="truncate text-sm">{{ track.song.artists.join(', ') }} — {{ track.song.name }}</p>
-            <p class="text-xs" [class.text-red-400]="track.status === 'failed'" [class.text-zinc-500]="track.status !== 'failed'">
+            <p class="truncate text-sm">
+              {{ track.song.artists.join(', ') }} — {{ track.song.name }}
+            </p>
+            <p
+              class="text-xs"
+              [class.text-red-400]="track.status === 'failed'"
+              [class.text-zinc-500]="track.status !== 'failed'"
+            >
               {{ statusLabels[track.status] }}
               @if (track.error) {
                 · {{ track.error }}

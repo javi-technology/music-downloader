@@ -1,4 +1,4 @@
-export type SpotifyResourceType = 'track' | 'album' | 'playlist';
+export type SpotifyResourceType = "track" | "album" | "playlist";
 
 export interface SpotifyResource {
   type: SpotifyResourceType;
@@ -8,11 +8,12 @@ export interface SpotifyResource {
 export class InvalidSpotifyUrlError extends Error {
   constructor(url: string) {
     super(`URL do Spotify inválida ou não suportada: "${url}"`);
-    this.name = 'InvalidSpotifyUrlError';
+    this.name = "InvalidSpotifyUrlError";
   }
 }
 
-const WEB_URL = /^https?:\/\/open\.spotify\.com\/(?:intl-[a-z-]+\/)?(track|album|playlist)\/([A-Za-z0-9]+)(?:[/?#].*)?$/;
+const WEB_URL =
+  /^https?:\/\/open\.spotify\.com\/(?:intl-[a-z-]+\/)?(track|album|playlist)\/([A-Za-z0-9]+)(?:[/?#].*)?$/;
 const URI = /^spotify:(track|album|playlist):([A-Za-z0-9]+)$/;
 
 export function parseSpotifyUrl(input: string): SpotifyResource {

@@ -1,5 +1,5 @@
-import type { SearchResult, Song } from '../domain/types.js';
-import { ratio, slugify } from './text.js';
+import type { SearchResult, Song } from "../domain/types.js";
+import { ratio, slugify } from "./text.js";
 
 /**
  * Pontuação de resultados inspirada em `spotdl/utils/matching.py` (spotDL, licença MIT):
@@ -8,8 +8,20 @@ import { ratio, slugify } from './text.js';
  */
 
 const FORBIDDEN_WORDS = [
-  'bassboosted', 'remix', 'remastered', 'remaster', 'reverb', 'bassboost', 'live',
-  'acoustic', '8daudio', 'concert', 'acapella', 'slowed', 'instrumental', 'cover',
+  "bassboosted",
+  "remix",
+  "remastered",
+  "remaster",
+  "reverb",
+  "bassboost",
+  "live",
+  "acoustic",
+  "8daudio",
+  "concert",
+  "acapella",
+  "slowed",
+  "instrumental",
+  "cover",
 ];
 
 const MIN_NAME_MATCH = 60;
@@ -22,12 +34,19 @@ export interface ScoredResult {
 }
 
 /** Escolhe a faixa oficial (verificada) de maior nota; só recorre a vídeos se nenhuma for compatível. */
-export function pickBestMatch(song: Song, results: SearchResult[]): ScoredResult | null {
+export function pickBestMatch(
+  song: Song,
+  results: SearchResult[],
+): ScoredResult | null {
   const scored = results
     .map((result) => ({ result, score: scoreResult(song, result) }))
     .filter((item): item is ScoredResult => item.score !== null);
 
-  const best = (items: ScoredResult[]) => items.reduce<ScoredResult | null>((top, item) => (top && top.score >= item.score ? top : item), null);
+  const best = (items: ScoredResult[]) =>
+    items.reduce<ScoredResult | null>(
+      (top, item) => (top && top.score >= item.score ? top : item),
+      null,
+    );
   return best(scored.filter((item) => item.result.verified)) ?? best(scored);
 }
 
@@ -35,24 +54,38 @@ export function scoreResult(song: Song, result: SearchResult): number | null {
   if (!hasCommonWord(song.name, result.name)) return null;
 
   const artistsMatch = artistsScore(song, result);
-  const nameMatch = nameScore(song, result) - 15 * forbiddenWordsIn(song.name, result.name).length;
-  const timeMatch = Math.exp(-0.1 * Math.abs(song.durationSeconds - result.durationSeconds)) * 100;
+  const nameMatch =
+    nameScore(song, result) -
+    15 * forbiddenWordsIn(song.name, result.name).length;
+  const timeMatch =
+    Math.exp(-0.1 * Math.abs(song.durationSeconds - result.durationSeconds)) *
+    100;
 
-  if (nameMatch <= MIN_NAME_MATCH || artistsMatch < MIN_ARTISTS_MATCH || timeMatch < MIN_TIME_MATCH) return null;
+  if (
+    nameMatch <= MIN_NAME_MATCH ||
+    artistsMatch < MIN_ARTISTS_MATCH ||
+    timeMatch < MIN_TIME_MATCH
+  )
+    return null;
 
   let average = (artistsMatch + nameMatch) / 2;
 
   // Álbum só reforça a nota: faixas oficiais costumam aparecer como single no YouTube Music.
   if (result.verified && result.album && song.album) {
     const albumMatch = ratio(slugify(song.album), slugify(result.album));
-    if (albumMatch > 80) average = Math.max(average, (average + albumMatch) / 2);
+    if (albumMatch > 80)
+      average = Math.max(average, (average + albumMatch) / 2);
   }
 
   if (timeMatch < 50 && average < 75) return null;
 
   if (average <= 85) {
     average = (average + timeMatch) / 2;
-    if (song.explicit !== undefined && result.explicit !== undefined && song.explicit !== result.explicit) {
+    if (
+      song.explicit !== undefined &&
+      result.explicit !== undefined &&
+      song.explicit !== result.explicit
+    ) {
       average -= 5;
     }
   }
@@ -61,22 +94,24 @@ export function scoreResult(song: Song, result: SearchResult): number | null {
 }
 
 function words(value: string): string[] {
-  return slugify(value).split('-').filter(Boolean);
+  return slugify(value).split("-").filter(Boolean);
 }
 
 function sortedSlug(value: string): string {
-  return words(value).sort().join('-');
+  return words(value).sort().join("-");
 }
 
 function hasCommonWord(songName: string, resultName: string): boolean {
-  const haystack = slugify(resultName).replaceAll('-', '');
+  const haystack = slugify(resultName).replaceAll("-", "");
   return words(songName).some((word) => haystack.includes(word));
 }
 
 function forbiddenWordsIn(songName: string, resultName: string): string[] {
-  const original = slugify(songName).replaceAll('-', '');
-  const candidate = slugify(resultName).replaceAll('-', '');
-  return FORBIDDEN_WORDS.filter((word) => candidate.includes(word) && !original.includes(word));
+  const original = slugify(songName).replaceAll("-", "");
+  const candidate = slugify(resultName).replaceAll("-", "");
+  return FORBIDDEN_WORDS.filter(
+    (word) => candidate.includes(word) && !original.includes(word),
+  );
 }
 
 function nameScore(song: Song, result: SearchResult): number {
@@ -84,8 +119,8 @@ function nameScore(song: Song, result: SearchResult): number {
   if (direct > 75) return direct;
 
   // Vídeos costumam vir como "Artista - Título": compara incluindo os artistas.
-  const songTitle = sortedSlug(`${song.artists.join(' ')} ${song.name}`);
-  const resultTitle = sortedSlug(`${result.artists.join(' ')} ${result.name}`);
+  const songTitle = sortedSlug(`${song.artists.join(" ")} ${song.name}`);
+  const resultTitle = sortedSlug(`${result.artists.join(" ")} ${result.name}`);
   return Math.max(direct, ratio(resultTitle, songTitle));
 }
 
@@ -93,8 +128,13 @@ function artistsScore(song: Song, result: SearchResult): number {
   const songArtists = song.artists.map(slugify);
   const resultArtists = result.artists.map(slugify);
 
-  const best = (artist: string) => Math.max(0, ...resultArtists.map((candidate) => ratio(artist, candidate)));
-  let score = resultArtists.length === 0 ? 0 : songArtists.reduce((sum, artist) => sum + best(artist), 0) / songArtists.length;
+  const best = (artist: string) =>
+    Math.max(0, ...resultArtists.map((candidate) => ratio(artist, candidate)));
+  let score =
+    resultArtists.length === 0
+      ? 0
+      : songArtists.reduce((sum, artist) => sum + best(artist), 0) /
+        songArtists.length;
 
   // Resultado sem artistas compatíveis: aceita se os artistas aparecem no título.
   if (score < MIN_ARTISTS_MATCH) {

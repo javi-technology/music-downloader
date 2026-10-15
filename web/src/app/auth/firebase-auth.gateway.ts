@@ -10,7 +10,9 @@ export class FirebaseAuthGateway extends AuthGateway {
 
   constructor() {
     super();
-    onAuthStateChanged(this.auth, (user) => this.user.set(user ? { uid: user.uid, displayName: user.displayName } : null));
+    onAuthStateChanged(this.auth, (user) =>
+      this.user.set(user ? { uid: user.uid, displayName: user.displayName } : null),
+    );
   }
 
   async signIn(): Promise<void> {

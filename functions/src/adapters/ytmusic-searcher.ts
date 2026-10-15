@@ -1,5 +1,5 @@
-import type { MusicSearcher } from '../domain/ports.js';
-import type { SearchResult } from '../domain/types.js';
+import type { MusicSearcher } from "../domain/ports.js";
+import type { SearchResult } from "../domain/types.js";
 
 interface YTItem {
   videoId: string;
@@ -26,10 +26,14 @@ export class YTMusicSearcher implements MusicSearcher {
     this.ready ??= this.api.initialize();
     await this.ready;
 
-    const [songs, videos] = await Promise.all([this.api.searchSongs(query), this.api.searchVideos(query)]);
-    return [...songs.map((item) => toResult(item, true)), ...videos.map((item) => toResult(item, false))].filter(
-      (result): result is SearchResult => result !== null,
-    );
+    const [songs, videos] = await Promise.all([
+      this.api.searchSongs(query),
+      this.api.searchVideos(query),
+    ]);
+    return [
+      ...songs.map((item) => toResult(item, true)),
+      ...videos.map((item) => toResult(item, false)),
+    ].filter((result): result is SearchResult => result !== null);
   }
 }
 

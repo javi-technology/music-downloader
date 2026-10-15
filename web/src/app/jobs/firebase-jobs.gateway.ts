@@ -20,7 +20,10 @@ export class FirebaseJobsGateway extends JobsGateway {
   private readonly storage = inject(STORAGE);
 
   async createJob(url: string): Promise<{ jobId: string; totalTracks: number }> {
-    const call = httpsCallable<{ url: string }, { jobId: string; totalTracks: number }>(this.functions, 'mdCreateDownloadJob');
+    const call = httpsCallable<{ url: string }, { jobId: string; totalTracks: number }>(
+      this.functions,
+      'mdCreateDownloadJob',
+    );
     return (await call({ url })).data;
   }
 
@@ -29,7 +32,12 @@ export class FirebaseJobsGateway extends JobsGateway {
       switchMap((user) =>
         user
           ? this.snapshots(
-              query(collection(this.firestore, JOBS), where('ownerUid', '==', user.uid), orderBy('createdAt', 'desc'), limit(50)),
+              query(
+                collection(this.firestore, JOBS),
+                where('ownerUid', '==', user.uid),
+                orderBy('createdAt', 'desc'),
+                limit(50),
+              ),
               toDownloadJob,
             )
           : of([]),
@@ -42,7 +50,11 @@ export class FirebaseJobsGateway extends JobsGateway {
       switchMap((user) =>
         user
           ? this.snapshots(
-              query(collection(this.firestore, JOBS, jobId, TRACKS), where('ownerUid', '==', user.uid), orderBy('position')),
+              query(
+                collection(this.firestore, JOBS, jobId, TRACKS),
+                where('ownerUid', '==', user.uid),
+                orderBy('position'),
+              ),
               toJobTrack,
             )
           : of([]),
@@ -55,10 +67,15 @@ export class FirebaseJobsGateway extends JobsGateway {
   }
 
   private authUser(): Observable<User | null> {
-    return new Observable((subscriber) => onAuthStateChanged(this.auth, (user) => subscriber.next(user)));
+    return new Observable((subscriber) =>
+      onAuthStateChanged(this.auth, (user) => subscriber.next(user)),
+    );
   }
 
-  private snapshots<T>(source: Query, map: (id: string, data: Record<string, unknown>) => T): Observable<T[]> {
+  private snapshots<T>(
+    source: Query,
+    map: (id: string, data: Record<string, unknown>) => T,
+  ): Observable<T[]> {
     return new Observable((subscriber) =>
       onSnapshot(
         source,

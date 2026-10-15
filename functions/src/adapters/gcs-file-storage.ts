@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto';
-import type { FileStorage } from '../domain/ports.js';
+import { randomUUID } from "node:crypto";
+import type { FileStorage } from "../domain/ports.js";
 
 interface UploadOptions {
   destination: string;
@@ -25,10 +25,12 @@ export class GcsFileStorage implements FileStorage {
   async upload(localPath: string, destination: string): Promise<void> {
     await this.bucket.upload(localPath, {
       destination,
-      contentType: 'audio/mpeg',
+      contentType: "audio/mpeg",
       resumable: false,
       // Sem este token, `getDownloadURL()` do SDK web não consegue gerar o link do arquivo.
-      metadata: { metadata: { firebaseStorageDownloadTokens: this.newToken() } },
+      metadata: {
+        metadata: { firebaseStorageDownloadTokens: this.newToken() },
+      },
     });
   }
 }

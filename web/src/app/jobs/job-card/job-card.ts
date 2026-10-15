@@ -5,7 +5,11 @@ import { switchMap } from 'rxjs';
 import { DownloadJob, JobTrack, SourceType, TrackStatus, jobProgress } from '../job.model';
 import { JobsGateway } from '../jobs.gateway';
 
-const SOURCE_LABELS: Record<SourceType, string> = { track: 'Faixa', album: 'Álbum', playlist: 'Playlist' };
+const SOURCE_LABELS: Record<SourceType, string> = {
+  track: 'Faixa',
+  album: 'Álbum',
+  playlist: 'Playlist',
+};
 
 const STATUS_LABELS: Record<TrackStatus, string> = {
   pending: 'Na fila',
@@ -26,9 +30,12 @@ export class JobCard {
 
   protected readonly progress = computed(() => jobProgress(this.job()));
   protected readonly sourceLabel = computed(() => SOURCE_LABELS[this.job().source.type]);
-  protected readonly tracks = toSignal(toObservable(this.job).pipe(switchMap((job) => this.gateway.watchTracks(job.id))), {
-    initialValue: [] as JobTrack[],
-  });
+  protected readonly tracks = toSignal(
+    toObservable(this.job).pipe(switchMap((job) => this.gateway.watchTracks(job.id))),
+    {
+      initialValue: [] as JobTrack[],
+    },
+  );
   protected readonly statusLabels = STATUS_LABELS;
 
   protected async download(track: JobTrack): Promise<void> {

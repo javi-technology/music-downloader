@@ -17,15 +17,27 @@ describe('jobProgress', () => {
   });
 
   it('indica job em andamento', () => {
-    expect(jobProgress(job({ completedTracks: 1, failedTracks: 1 }))).toEqual({ finished: 2, total: 4, percent: 50, status: 'processing' });
+    expect(jobProgress(job({ completedTracks: 1, failedTracks: 1 }))).toEqual({
+      finished: 2,
+      total: 4,
+      percent: 50,
+      status: 'processing',
+    });
   });
 
   it('indica job concluído quando todas terminaram com sucesso', () => {
-    expect(jobProgress(job({ completedTracks: 4 }))).toEqual({ finished: 4, total: 4, percent: 100, status: 'done' });
+    expect(jobProgress(job({ completedTracks: 4 }))).toEqual({
+      finished: 4,
+      total: 4,
+      percent: 100,
+      status: 'done',
+    });
   });
 
   it('indica conclusão com falhas', () => {
-    expect(jobProgress(job({ completedTracks: 3, failedTracks: 1 })).status).toBe('done-with-errors');
+    expect(jobProgress(job({ completedTracks: 3, failedTracks: 1 })).status).toBe(
+      'done-with-errors',
+    );
   });
 
   it('indica falha total', () => {

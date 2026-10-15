@@ -1,4 +1,4 @@
-import type { SearchResult, Song } from './types.js';
+import type { SearchResult, Song } from "./types.js";
 
 export interface MusicSearcher {
   search(query: string): Promise<SearchResult[]>;
