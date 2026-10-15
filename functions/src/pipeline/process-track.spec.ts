@@ -85,4 +85,33 @@ describe("processTrack", () => {
     );
     expect(deps.downloader.download).not.toHaveBeenCalled();
   });
+
+  describe("com ISRC", () => {
+    const withIsrc: Song = { ...song, isrc: "USUG11904206" };
+
+    it("busca primeiro pelo ISRC e usa o resultado sem busca textual", async () => {
+      const deps = makeDeps();
+      const outcome = await processTrack(withIsrc, "dest", deps);
+      expect(deps.searcher.search).toHaveBeenCalledTimes(1);
+      expect(deps.searcher.search).toHaveBeenCalledWith("USUG11904206");
+      expect(outcome.videoId).toBe("good");
+    });
+
+    it("recorre à busca textual quando o ISRC não traz resultado compatível", async () => {
+      const deps = makeDeps();
+      deps.searcher.search
+        .mockResolvedValueOnce([
+          { ...goodResult, videoId: "lixo", name: "Rush E", artists: ["X"] },
+        ])
+        .mockResolvedValueOnce([goodResult]);
+
+      const outcome = await processTrack(withIsrc, "dest", deps);
+
+      expect(deps.searcher.search).toHaveBeenNthCalledWith(
+        2,
+        "The Weeknd - Blinding Lights",
+      );
+      expect(outcome.videoId).toBe("good");
+    });
+  });
 });

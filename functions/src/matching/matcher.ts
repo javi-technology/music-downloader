@@ -50,6 +50,28 @@ export function pickBestMatch(
   return best(scored.filter((item) => item.result.verified)) ?? best(scored);
 }
 
+/**
+ * Busca por ISRC, como no spotDL: o YouTube Music costuma devolver a gravação exata, mas lista só
+ * o artista principal, e a média com convidados reprovaria a faixa no `scoreResult`. Por isso basta
+ * que o resultado verificado tenha título, artista principal e duração compatíveis.
+ */
+export function pickIsrcMatch(
+  song: Song,
+  results: SearchResult[],
+): ScoredResult | null {
+  const mainArtist = slugify(song.artists[0] ?? "");
+  const match = results.find(
+    (result) =>
+      result.verified &&
+      hasCommonWord(song.name, result.name) &&
+      result.artists.some(
+        (artist) => ratio(mainArtist, slugify(artist)) >= MIN_ARTISTS_MATCH,
+      ) &&
+      timeScore(song, result) >= MIN_TIME_MATCH,
+  );
+  return match ? { result: match, score: 100 } : null;
+}
+
 export function scoreResult(song: Song, result: SearchResult): number | null {
   if (!hasCommonWord(song.name, result.name)) return null;
 
@@ -57,9 +79,7 @@ export function scoreResult(song: Song, result: SearchResult): number | null {
   const nameMatch =
     nameScore(song, result) -
     15 * forbiddenWordsIn(song.name, result.name).length;
-  const timeMatch =
-    Math.exp(-0.1 * Math.abs(song.durationSeconds - result.durationSeconds)) *
-    100;
+  const timeMatch = timeScore(song, result);
 
   if (
     nameMatch <= MIN_NAME_MATCH ||
@@ -91,6 +111,13 @@ export function scoreResult(song: Song, result: SearchResult): number | null {
   }
 
   return Math.min(average, 100);
+}
+
+function timeScore(song: Song, result: SearchResult): number {
+  return (
+    Math.exp(-0.1 * Math.abs(song.durationSeconds - result.durationSeconds)) *
+    100
+  );
 }
 
 function words(value: string): string[] {
