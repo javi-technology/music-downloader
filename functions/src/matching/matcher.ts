@@ -21,13 +21,14 @@ export interface ScoredResult {
   score: number;
 }
 
+/** Escolhe a faixa oficial (verificada) de maior nota; só recorre a vídeos se nenhuma for compatível. */
 export function pickBestMatch(song: Song, results: SearchResult[]): ScoredResult | null {
-  let best: ScoredResult | null = null;
-  for (const result of results) {
-    const score = scoreResult(song, result);
-    if (score !== null && (best === null || score > best.score)) best = { result, score };
-  }
-  return best;
+  const scored = results
+    .map((result) => ({ result, score: scoreResult(song, result) }))
+    .filter((item): item is ScoredResult => item.score !== null);
+
+  const best = (items: ScoredResult[]) => items.reduce<ScoredResult | null>((top, item) => (top && top.score >= item.score ? top : item), null);
+  return best(scored.filter((item) => item.result.verified)) ?? best(scored);
 }
 
 export function scoreResult(song: Song, result: SearchResult): number | null {
@@ -41,9 +42,10 @@ export function scoreResult(song: Song, result: SearchResult): number | null {
 
   let average = (artistsMatch + nameMatch) / 2;
 
+  // Álbum só reforça a nota: faixas oficiais costumam aparecer como single no YouTube Music.
   if (result.verified && result.album && song.album) {
     const albumMatch = ratio(slugify(song.album), slugify(result.album));
-    if (albumMatch <= 80) average = (average + albumMatch) / 2;
+    if (albumMatch > 80) average = Math.max(average, (average + albumMatch) / 2);
   }
 
   if (timeMatch < 50 && average < 75) return null;
