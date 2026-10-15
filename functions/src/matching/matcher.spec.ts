@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SearchResult, Song } from "../domain/types.js";
-import { pickBestMatch, scoreResult } from "./matcher.js";
+import { pickBestMatch, pickIsrcMatch, scoreResult } from "./matcher.js";
 
 const song: Song = {
   spotifyId: "sp1",
@@ -149,5 +149,69 @@ describe("pickBestMatch", () => {
       }),
     ]);
     expect(best?.result.videoId).toBe("video");
+  });
+});
+
+describe("pickIsrcMatch", () => {
+  const deTodaCor: Song = {
+    spotifyId: "4bq3LdjzHTa2slHEiRr3gz",
+    name: "De Toda Cor",
+    artists: [
+      "Renato Luciano",
+      "Ney Matogrosso",
+      "Oswaldo Montenegro",
+      "Laila Garin",
+      "Elisa Lucinda",
+      "Paulinho Moska",
+      "Pedro Luiz",
+      "Emílio Dantas",
+      "Léo Pinheiro",
+    ],
+    album: "De Toda Cor",
+    durationSeconds: 295.402,
+    isrc: "QM4TX1798119",
+  };
+  const official = result({
+    videoId: "W-zaWXA8aRE",
+    name: "De Toda Cor (feat. Ney Matogrosso, Oswaldo Montenegro, Laila Garin & Elisa Lucinda)",
+    artists: ["Renato Luciano"],
+    album: "De Toda Cor",
+    durationSeconds: 296,
+  });
+  const unrelated = result({
+    videoId: "lixo",
+    name: "Rush E",
+    artists: ["Impossible Piano Remix"],
+    durationSeconds: 151,
+  });
+
+  it("aceita a faixa oficial mesmo quando o YouTube Music lista só o artista principal", () => {
+    expect(scoreResult(deTodaCor, official)).toBeNull();
+    expect(pickIsrcMatch(deTodaCor, [official, unrelated])?.result.videoId).toBe(
+      "W-zaWXA8aRE",
+    );
+  });
+
+  it("ignora resultados sem relação que a busca por ISRC também devolve", () => {
+    expect(pickIsrcMatch(deTodaCor, [unrelated, official])?.result.videoId).toBe(
+      "W-zaWXA8aRE",
+    );
+    expect(pickIsrcMatch(deTodaCor, [unrelated])).toBeNull();
+  });
+
+  it("ignora vídeos (resultados não verificados)", () => {
+    expect(pickIsrcMatch(deTodaCor, [{ ...official, verified: false }])).toBeNull();
+  });
+
+  it("rejeita resultado de outro artista principal", () => {
+    expect(
+      pickIsrcMatch(deTodaCor, [{ ...official, artists: ["Marcelo Zarske"] }]),
+    ).toBeNull();
+  });
+
+  it("rejeita resultado com duração muito diferente", () => {
+    expect(
+      pickIsrcMatch(deTodaCor, [{ ...official, durationSeconds: 197 }]),
+    ).toBeNull();
   });
 });
