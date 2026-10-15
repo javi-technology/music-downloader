@@ -64,8 +64,13 @@ music-downloader/
 - `mdCreateDownloadJob` (callable, autenticada): recebe `{ url }`, busca as faixas no Spotify e cria
   `downloadJobs/{jobId}` + `downloadJobs/{jobId}/tracks/{000..}` com status `pending`.
 - `mdProcessTrack` (trigger `onDocumentCreated` em `tracks`): processa **uma faixa por invocação**
-  (`concurrency: 1`), atualiza o status (`processing` → `done`/`failed`) e os contadores do job.
-- Arquivos: `music-downloader/users/{uid}/{jobId}/<Artistas> - <Título>.mp3`.
+  (`concurrency: 1`). É **idempotente** (eventos do Firestore têm entrega "pelo menos uma vez"):
+  - `claimTrack` reivindica a faixa em transação (`pending` → `processing`); entregas duplicadas saem sem fazer nada;
+  - `completeTrack`/`failTrack` gravam o status final **e** o contador do job na mesma transação, só a partir de `processing`;
+  - erro ao gravar a conclusão **não** marca a faixa como `failed` (o MP3 já foi enviado).
+- Arquivos: `music-downloader/users/{uid}/{jobId}/{trackId}/<Artistas> - <Título>.mp3` (pasta por faixa
+  evita colisão entre faixas homônimas), com `firebaseStorageDownloadTokens` para o `getDownloadURL()` do web.
+- Documentos persistidos no Firestore nunca podem conter `undefined`: omita campos opcionais ausentes.
 - Binários: `yt-dlp` e `ffmpeg` standalone são baixados em `functions/bin` durante o build na nuvem.
   Localmente, instale com `brew install yt-dlp ffmpeg` (ou defina `YT_DLP_PATH` / `FFMPEG_PATH`).
 - Domínio puro (matcher, pipeline, casos de uso) **não** importa SDKs: dependências entram por portas.
@@ -118,15 +123,20 @@ Diretrizes:
 - Isole I/O (Spotify API, YouTube, yt-dlp, ffmpeg, Firestore, Storage) atrás de interfaces/portas
   injetáveis, para que a lógica de domínio seja testada sem rede.
 - Um PR só é aberto com **todos os testes passando**: `npm test` (raiz).
+- Regras do Firestore, transações e serialização real **não** são testáveis com fakes: use a suíte de
+  emulador (`*.emulator.spec.ts`), que roda contra o Firestore Emulator com o projeto `demo-music-downloader`.
 
 Comandos:
 
 ```bash
 npm --prefix functions test          # testes do backend
 npm --prefix functions run test:watch
+npm --prefix functions run test:emulators   # regras + repositório no Firestore Emulator (requer Java 21+)
 npm --prefix web test -- --watch=false   # testes do frontend
 npm test                             # tudo
 ```
+
+Pré-requisito da suíte de emulador: Java 21+ no PATH (`brew install openjdk@21`).
 
 ## Fluxo de desenvolvimento
 

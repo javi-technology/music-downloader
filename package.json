@@ -2,7 +2,7 @@
   "name": "music-downloader",
   "private": true,
   "scripts": {
-    "test": "npm --prefix functions test && npm --prefix web test -- --watch=false",
+    "test": "npm --prefix functions test && npm --prefix functions run test:emulators && npm --prefix web test -- --watch=false",
     "build": "npm --prefix functions run build && npm --prefix web run build",
     "emulators": "firebase emulators:start",
     "deploy": "firebase deploy --only functions:music-downloader,firestore,storage,hosting:music-downloader",
