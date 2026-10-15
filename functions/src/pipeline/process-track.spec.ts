@@ -30,14 +30,14 @@ function makeDeps(results: SearchResult[] = [goodResult]) {
 }
 
 describe("buildFileName", () => {
-  it('gera "Artistas - Título.mp3" sem caracteres inválidos', () => {
+  it('gera "Título.mp3" sem caracteres inválidos', () => {
     expect(
       buildFileName({
         ...song,
         artists: ["AC/DC", "X"],
         name: 'Back: In "Black"?',
       }),
-    ).toBe("AC_DC, X - Back_ In _Black__.mp3");
+    ).toBe("Back_ In _Black__.mp3");
   });
 });
 
@@ -66,13 +66,13 @@ describe("processTrack", () => {
     expect(deps.tagger.tag).toHaveBeenCalledWith("/tmp/work/good.mp3", song);
     expect(deps.storage.upload).toHaveBeenCalledWith(
       "/tmp/work/good.mp3",
-      "music-downloader/users/u1/job1/The Weeknd - Blinding Lights.mp3",
+      "music-downloader/users/u1/job1/Blinding Lights.mp3",
     );
     expect(outcome).toEqual({
       videoId: "good",
       score: expect.any(Number),
       storagePath:
-        "music-downloader/users/u1/job1/The Weeknd - Blinding Lights.mp3",
+        "music-downloader/users/u1/job1/Blinding Lights.mp3",
     });
   });
 
