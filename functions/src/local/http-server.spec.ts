@@ -17,7 +17,12 @@ import type { Song } from "../domain/types.js";
 import { EmptySourceError, TooManyTracksError } from "../jobs/use-cases.js";
 import { InvalidSpotifyUrlError } from "../spotify/url.js";
 import { ChangeFeed } from "./change-feed.js";
-import { SpotifyNotConfiguredError, createLocalServer } from "./http-server.js";
+import {
+  SpotifyNotConfiguredError,
+  ToolsNotReadyError,
+  createLocalServer,
+} from "./http-server.js";
+import type { ToolsStatus } from "./tools/tool-manager.js";
 import {
   InvalidSettingsError,
   type PublicSettings,
@@ -49,6 +54,10 @@ describe("servidor local", () => {
     publicView: Mock<() => PublicSettings>;
     update: Mock<(changes: SettingsUpdate) => void>;
   };
+  let tools: {
+    status: Mock<() => ToolsStatus>;
+    install: Mock<() => Promise<void>>;
+  };
   let createJob: Mock<
     (url: string) => Promise<{ jobId: string; totalTracks: number }>
   >;
@@ -57,7 +66,7 @@ describe("servidor local", () => {
     dir = await mkdtemp(join(tmpdir(), "md-http-"));
     feed = new ChangeFeed();
     repository = new SqliteJobRepository(new DatabaseSync(":memory:"), {
-      onChange: (jobId) => feed.publish(jobId),
+      onChange: (jobId) => feed.publish("job", { jobId }),
     });
     settings = {
       publicView: vi.fn(() => ({
@@ -67,8 +76,13 @@ describe("servidor local", () => {
       update: vi.fn(),
     };
     createJob = vi.fn();
+    tools = {
+      status: vi.fn(() => ({ ready: false, installing: true, tools: [] })),
+      install: vi.fn().mockResolvedValue(undefined),
+    };
     server = createLocalServer({
       settings,
+      tools,
       repository,
       createJob,
       feed,
@@ -163,11 +177,14 @@ describe("servidor local", () => {
       }
     });
 
-    it("exige JSON em requisições que alteram dados", async () => {
-      const reply = await request("POST", "/api/jobs", {
-        headers: { "content-type": "text/plain" },
-      });
-      expect(reply.status).toBe(415);
+    it("exige JSON em requisições que alteram dados, mesmo sem corpo", async () => {
+      for (const path of ["/api/jobs", "/api/tools/install"]) {
+        const reply = await request("POST", path, {
+          headers: { "content-type": "text/plain" },
+        });
+        expect(reply.status).toBe(415);
+      }
+      expect(tools.install).not.toHaveBeenCalled();
     });
   });
 
@@ -241,6 +258,34 @@ describe("servidor local", () => {
     });
   });
 
+  describe("/api/tools", () => {
+    it("GET devolve o estado das ferramentas", async () => {
+      const reply = await request("GET", "/api/tools");
+      expect(reply.status).toBe(200);
+      expect(json(reply)).toEqual({
+        ready: false,
+        installing: true,
+        tools: [],
+      });
+    });
+
+    it("POST install inicia a instalação sem esperar terminar", async () => {
+      tools.install.mockReturnValue(new Promise(() => {}));
+
+      const reply = await request("POST", "/api/tools/install", {
+        headers: { "content-type": "application/json" },
+      });
+
+      expect(reply.status).toBe(202);
+      expect(tools.install).toHaveBeenCalledOnce();
+      expect(json(reply)).toEqual({
+        ready: false,
+        installing: true,
+        tools: [],
+      });
+    });
+  });
+
   describe("POST /api/jobs", () => {
     it("cria o job e responde 201", async () => {
       createJob.mockResolvedValue({ jobId: "j1", totalTracks: 3 });
@@ -266,6 +311,7 @@ describe("servidor local", () => {
       [new InvalidSpotifyUrlError("x"), 400],
       [new EmptySourceError(), 404],
       [new SpotifyNotConfiguredError(), 409],
+      [new ToolsNotReadyError(), 409],
       [new TooManyTracksError(500), 422],
     ])("mapeia %s para %i com a mensagem", async (error, status) => {
       createJob.mockRejectedValue(error);
@@ -366,7 +412,7 @@ describe("servidor local", () => {
   });
 
   describe("GET /api/events", () => {
-    it("envia um evento SSE a cada mudança de job", async () => {
+    it("envia um evento SSE a cada mudança (job, ferramentas)", async () => {
       const received = new Promise<string>((resolve, reject) => {
         const req = httpRequest(
           { host: "127.0.0.1", port, path: "/api/events" },
@@ -381,7 +427,7 @@ describe("servidor local", () => {
               }
             });
             // Conectado: dispara uma mudança.
-            feed.publish("j42");
+            feed.publish("job", { jobId: "j42" });
           },
         );
         req.on("error", reject);

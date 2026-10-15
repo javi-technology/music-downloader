@@ -27,6 +27,13 @@ describe("startLocalApp", () => {
     await rm(dir, { recursive: true, force: true });
   });
 
+  const readyTools = () => ({
+    status: vi.fn(() => ({ ready: true, installing: false, tools: [] })),
+    install: vi.fn().mockResolvedValue(undefined),
+    updateYtDlpIfStale: vi.fn().mockResolvedValue(undefined),
+    paths: vi.fn(() => ({ ytDlp: "y", ffmpeg: "f", deno: "d" })),
+  });
+
   const start = (
     overrides: Partial<Parameters<typeof startLocalApp>[0]> = {},
   ) =>
@@ -34,6 +41,7 @@ describe("startLocalApp", () => {
       dataDir: join(dir, "data"),
       defaultDownloadDir: join(dir, "Music"),
       port: 0,
+      tools: readyTools(),
       ...overrides,
     });
 
@@ -55,6 +63,34 @@ describe("startLocalApp", () => {
       spotifyConfigured: false,
       downloadDir: join(dir, "Music"),
     });
+  });
+
+  it("ao iniciar, instala as ferramentas ausentes e atualiza o yt-dlp antigo", async () => {
+    const tools = readyTools();
+    app = await start({ tools });
+
+    expect(tools.install).toHaveBeenCalledOnce();
+    expect(tools.updateYtDlpIfStale).toHaveBeenCalledWith(
+      7 * 24 * 60 * 60 * 1000,
+    );
+  });
+
+  it("recusa job enquanto as ferramentas não estão prontas", async () => {
+    const tools = readyTools();
+    tools.status.mockReturnValue({ ready: false, installing: true, tools: [] });
+    app = await start({ tools });
+    await api("/api/settings", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ spotifyClientId: "id", spotifyClientSecret: "s" }),
+    });
+
+    const reply = await postJob("https://open.spotify.com/track/t");
+
+    expect(reply.status).toBe(409);
+    expect(((await reply.json()) as { error: string }).error).toMatch(
+      /ferramentas/,
+    );
   });
 
   it("pede as credenciais do Spotify antes de criar job", async () => {
