@@ -205,10 +205,32 @@ describe("pickIsrcMatch", () => {
     ).toBeNull();
   });
 
-  it("rejeita resultado de outro artista principal", () => {
+  it("rejeita resultado sem nenhum artista da faixa", () => {
     expect(
       pickIsrcMatch(deTodaCor, [{ ...official, artists: ["Marcelo Zarske"] }]),
     ).toBeNull();
+  });
+
+  it("aceita música clássica listada pela orquestra, sem o compositor (1º artista no Spotify)", () => {
+    const danceOfTheKnights: Song = {
+      spotifyId: "2LiWNkeUOAeibGxJKxmjsD",
+      name: "Romeo and Juliet, Op. 64 / Act 1: Dance Of The Knights",
+      artists: ["Sergei Prokofiev", "The Cleveland Orchestra", "Lorin Maazel"],
+      album: "Prokofiev: Romeo & Juliet",
+      durationSeconds: 307.826,
+      isrc: "GBF077340311",
+    };
+    const recording = result({
+      videoId: "XX6GHiFKovw",
+      name: "Prokofiev: Romeo and Juliet, Op. 64 / Act 1: Dance Of The Knights",
+      artists: ["The Cleveland Orchestra"],
+      album: "Prokofiev: Romeo & Juliet",
+      durationSeconds: 308,
+    });
+
+    expect(
+      pickIsrcMatch(danceOfTheKnights, [recording])?.result.videoId,
+    ).toBe("XX6GHiFKovw");
   });
 
   it("rejeita resultado com duração muito diferente", () => {
