@@ -67,6 +67,20 @@ music-downloader/
             └── **/*.spec.ts    # Testes ao lado do código testado
 ```
 
+## Modo local (em migração)
+
+O sistema está migrando do Firebase para um **app local** (executável que roda no computador do
+usuário e é usado pelo navegador). Enquanto a migração não termina, os dois modos coexistem em
+`functions/src`; o modo local fica em `functions/src/local/`:
+
+- `app.ts` monta tudo: `SettingsStore` (JSON com as credenciais do Spotify e a pasta de destino),
+  `SqliteJobRepository` (`node:sqlite`), `TrackQueue` (uma faixa por vez), `LocalFileStorage` e a API.
+- `http-server.ts`: API em `127.0.0.1` (`/api/settings`, `/api/jobs`, `/api/events` via SSE). Toda
+  requisição passa pela checagem de `Host` (DNS rebinding) e `Origin`; o client secret nunca sai do servidor.
+- Arquivos: `<pasta de músicas>/<Álbum ou Playlist>/<Título>.mp3` (faixa avulsa na raiz), sem sobrescrever.
+- Rodar: `npm --prefix functions run local` (variáveis opcionais: `MD_PORT`, `MD_DATA_DIR`,
+  `MD_ALLOWED_ORIGINS`).
+
 ## Arquitetura do backend
 
 - `mdCreateDownloadJob` (callable, autenticada): recebe `{ url }`, busca as faixas no Spotify e cria
