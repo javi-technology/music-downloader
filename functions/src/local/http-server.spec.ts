@@ -4,13 +4,25 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  type Mock,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import type { Song } from "../domain/types.js";
 import { EmptySourceError, TooManyTracksError } from "../jobs/use-cases.js";
 import { InvalidSpotifyUrlError } from "../spotify/url.js";
 import { ChangeFeed } from "./change-feed.js";
 import { SpotifyNotConfiguredError, createLocalServer } from "./http-server.js";
-import { InvalidSettingsError } from "./settings.js";
+import {
+  InvalidSettingsError,
+  type PublicSettings,
+  type SettingsUpdate,
+} from "./settings.js";
 import { SqliteJobRepository } from "./sqlite-job-repository.js";
 
 interface Reply {
@@ -34,10 +46,12 @@ describe("servidor local", () => {
   let repository: SqliteJobRepository;
   let feed: ChangeFeed;
   let settings: {
-    publicView: ReturnType<typeof vi.fn>;
-    update: ReturnType<typeof vi.fn>;
+    publicView: Mock<() => PublicSettings>;
+    update: Mock<(changes: SettingsUpdate) => void>;
   };
-  let createJob: ReturnType<typeof vi.fn>;
+  let createJob: Mock<
+    (url: string) => Promise<{ jobId: string; totalTracks: number }>
+  >;
 
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), "md-http-"));
@@ -263,6 +277,7 @@ describe("servidor local", () => {
     });
 
     it("não vaza detalhes de erros inesperados", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
       createJob.mockRejectedValue(new Error("Spotify auth 401 segredo"));
       const reply = await request("POST", "/api/jobs", { body: { url: "x" } });
       expect(reply.status).toBe(502);
@@ -286,6 +301,18 @@ describe("servidor local", () => {
       expect(json(await request("GET", `/api/jobs/${jobId}/tracks`))).toEqual([
         { id: "000", position: 0, status: "pending", song },
       ]);
+    });
+
+    it("responde 500 genérico para erro inesperado fora da criação de job", async () => {
+      vi.spyOn(repository, "listJobs").mockImplementation(() => {
+        throw new Error("disco corrompido");
+      });
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      const reply = await request("GET", "/api/jobs");
+
+      expect(reply.status).toBe(500);
+      expect(json(reply).error).not.toMatch(/Spotify|disco/);
     });
 
     it("responde 404 para job inexistente e rotas desconhecidas", async () => {
