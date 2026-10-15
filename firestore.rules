@@ -7,6 +7,12 @@ service cloud.firestore {
     match /downloadJobs/{jobId} {
       allow read: if request.auth != null && resource.data.ownerUid == request.auth.uid;
       allow write: if false;
+
+      // Faixas carregam o `ownerUid` do job; o cliente só lê, quem escreve é o backend.
+      match /tracks/{trackId} {
+        allow read: if request.auth != null && resource.data.ownerUid == request.auth.uid;
+        allow write: if false;
+      }
     }
 
     match /{document=**} {
