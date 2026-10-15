@@ -1,0 +1,15 @@
+rules_version = '2';
+
+// Regras do bucket dedicado `javitech-8797d-music-downloader`.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /music-downloader/users/{uid}/{allPaths=**} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
