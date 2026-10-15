@@ -4,10 +4,11 @@ import { GcsFileStorage } from "./gcs-file-storage.js";
 describe("GcsFileStorage", () => {
   it("envia o MP3 com token de download do Firebase (exigido pelo getDownloadURL do SDK web)", async () => {
     const bucket = { upload: vi.fn().mockResolvedValue(undefined) };
-    await new GcsFileStorage(bucket, { newToken: () => "token-fixo" }).upload(
-      "/tmp/a.mp3",
-      "music-downloader/users/u/j/000/a.mp3",
-    );
+    const storagePath = await new GcsFileStorage(bucket, {
+      newToken: () => "token-fixo",
+    }).upload("/tmp/a.mp3", "music-downloader/users/u/j/000/a.mp3");
+
+    expect(storagePath).toBe("music-downloader/users/u/j/000/a.mp3");
 
     expect(bucket.upload).toHaveBeenCalledWith("/tmp/a.mp3", {
       destination: "music-downloader/users/u/j/000/a.mp3",

@@ -116,15 +116,15 @@ describe("runTrack", () => {
     destinationDir: "p",
   };
 
-  it("reivindica a faixa, processa em uma pasta própria e conclui", async () => {
+  it("reivindica a faixa, processa na pasta de destino e conclui", async () => {
     const repository = makeRepo();
-    const outcome = { storagePath: "p/007/x.mp3", videoId: "v", score: 95 };
+    const outcome = { storagePath: "p/x.mp3", videoId: "v", score: 95 };
     const process = vi.fn().mockResolvedValue(outcome);
 
     await runTrack(input, { repository, process });
 
     expect(repository.claimTrack).toHaveBeenCalledWith("j", "007");
-    expect(process).toHaveBeenCalledWith(song("1"), "p/007");
+    expect(process).toHaveBeenCalledWith(song("1"), "p");
     expect(repository.completeTrack).toHaveBeenCalledWith("j", "007", outcome);
     expect(repository.failTrack).not.toHaveBeenCalled();
   });
