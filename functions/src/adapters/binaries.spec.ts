@@ -41,4 +41,36 @@ describe("resolveBinary", () => {
       }),
     ).toBe("yt-dlp");
   });
+
+  it("resolve o deno pela variável DENO_PATH", () => {
+    expect(
+      resolveBinary("deno", {
+        env: { DENO_PATH: "/custom/deno" },
+        binDir: "/app/bin",
+        exists: () => false,
+      }),
+    ).toBe("/custom/deno");
+  });
+
+  it("no Windows procura o executável com .exe", () => {
+    expect(
+      resolveBinary("ffmpeg", {
+        env: { PATH: "C:\\Tools" },
+        binDir: "C:\\app\\bin",
+        platform: "win32",
+        exists: (p) => p === "C:\\app\\bin\\ffmpeg.exe",
+      }),
+    ).toBe("C:\\app\\bin\\ffmpeg.exe");
+  });
+
+  it("no Windows separa o PATH por ponto e vírgula", () => {
+    expect(
+      resolveBinary("yt-dlp", {
+        env: { PATH: "C:\\A;C:\\B" },
+        binDir: "C:\\app\\bin",
+        platform: "win32",
+        exists: (p) => p === "C:\\B\\yt-dlp.exe",
+      }),
+    ).toBe("C:\\B\\yt-dlp.exe");
+  });
 });
