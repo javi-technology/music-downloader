@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "javitech-8797d"
+  },
+  "targets": {
+    "javitech-8797d": {
+      "storage": {
+        "music-downloader": ["javitech-8797d-music-downloader"]
+      },
+      "hosting": {
+        "music-downloader": ["javitech-music-downloader"]
+      }
+    }
+  }
+}

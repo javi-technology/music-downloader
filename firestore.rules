@@ -1,0 +1,22 @@
+rules_version = '2';
+
+// Regras do database nomeado `music-downloader` (exclusivo deste sistema).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Jobs são criados/atualizados apenas pelas Cloud Functions (Admin SDK).
+    match /downloadJobs/{jobId} {
+      allow read: if request.auth != null && resource.data.ownerUid == request.auth.uid;
+      allow write: if false;
+
+      // Faixas carregam o `ownerUid` do job; o cliente só lê, quem escreve é o backend.
+      match /tracks/{trackId} {
+        allow read: if request.auth != null && resource.data.ownerUid == request.auth.uid;
+        allow write: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
