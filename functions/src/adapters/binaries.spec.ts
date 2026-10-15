@@ -22,10 +22,20 @@ describe("resolveBinary", () => {
     ).toBe("/app/bin/ffmpeg");
   });
 
-  it("cai para o PATH do sistema", () => {
+  it("resolve o caminho absoluto pelo PATH do sistema", () => {
+    expect(
+      resolveBinary("ffmpeg", {
+        env: { PATH: "/usr/bin:/opt/homebrew/bin" },
+        binDir: "/app/bin",
+        exists: (p) => p === "/opt/homebrew/bin/ffmpeg",
+      }),
+    ).toBe("/opt/homebrew/bin/ffmpeg");
+  });
+
+  it("devolve o nome puro quando não encontra o binário", () => {
     expect(
       resolveBinary("yt-dlp", {
-        env: {},
+        env: { PATH: "/usr/bin" },
         binDir: "/app/bin",
         exists: () => false,
       }),
