@@ -162,6 +162,47 @@ describe("SpotifyClient", () => {
     expect(songs.map((s) => s.spotifyId)).toEqual(["1", "2"]);
   });
 
+  describe("getCollection", () => {
+    it("usa o nome do álbum como título", async () => {
+      const { album: _a, external_ids: _e, ...simplified } = track("1");
+      routes({
+        "/albums/x": { ...album, tracks: { items: [simplified], next: null } },
+      });
+
+      const collection = await client.getCollection({ type: "album", id: "x" });
+
+      expect(collection.title).toBe("After Hours");
+      expect(collection.songs.map((s) => s.spotifyId)).toEqual(["1"]);
+    });
+
+    it("busca o nome da playlist como título", async () => {
+      routes({
+        "/playlists/p?fields=name": { name: "Minha Playlist" },
+        "/playlists/p/tracks?limit=100": {
+          items: [{ track: track("1") }],
+          next: null,
+        },
+      });
+
+      const collection = await client.getCollection({
+        type: "playlist",
+        id: "p",
+      });
+
+      expect(collection.title).toBe("Minha Playlist");
+      expect(collection.songs.map((s) => s.spotifyId)).toEqual(["1"]);
+    });
+
+    it("não define título para faixa avulsa", async () => {
+      routes({ "/tracks/a": track("a") });
+
+      const collection = await client.getCollection({ type: "track", id: "a" });
+
+      expect(collection).not.toHaveProperty("title");
+      expect(collection.songs).toHaveLength(1);
+    });
+  });
+
   it("lança erro descritivo quando a API falha", async () => {
     routes({});
     await expect(

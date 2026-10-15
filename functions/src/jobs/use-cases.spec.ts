@@ -27,10 +27,12 @@ function makeRepo() {
 }
 
 describe("createDownloadJob", () => {
-  it("interpreta a URL, busca as faixas e cria o job", async () => {
+  it("interpreta a URL, busca as faixas e cria o job com o título da coleção", async () => {
     const repository = makeRepo();
     const songs = {
-      getSongs: vi.fn().mockResolvedValue([song("1"), song("2")]),
+      getCollection: vi
+        .fn()
+        .mockResolvedValue({ title: "B", songs: [song("1"), song("2")] }),
     };
     const url = "https://open.spotify.com/album/abc";
 
@@ -39,29 +41,47 @@ describe("createDownloadJob", () => {
       { songs, repository },
     );
 
-    expect(songs.getSongs).toHaveBeenCalledWith({ type: "album", id: "abc" });
+    expect(songs.getCollection).toHaveBeenCalledWith({
+      type: "album",
+      id: "abc",
+    });
     expect(repository.createJob).toHaveBeenCalledWith({
       ownerUid: "u1",
       sourceUrl: url,
       source: { type: "album", id: "abc" },
+      title: "B",
       songs: [song("1"), song("2")],
     });
     expect(result).toEqual({ jobId: "job1", totalTracks: 2 });
   });
 
+  it("omite o título quando a fonte não tem (faixa avulsa)", async () => {
+    const repository = makeRepo();
+    const songs = {
+      getCollection: vi.fn().mockResolvedValue({ songs: [song("1")] }),
+    };
+
+    await createDownloadJob(
+      { ownerUid: "u1", url: "spotify:track:t" },
+      { songs, repository },
+    );
+
+    expect(repository.createJob.mock.calls[0][0]).not.toHaveProperty("title");
+  });
+
   it("rejeita URL inválida sem consultar o Spotify", async () => {
-    const songs = { getSongs: vi.fn() };
+    const songs = { getCollection: vi.fn() };
     await expect(
       createDownloadJob(
         { ownerUid: "u1", url: "xyz" },
         { songs, repository: makeRepo() },
       ),
     ).rejects.toBeInstanceOf(InvalidSpotifyUrlError);
-    expect(songs.getSongs).not.toHaveBeenCalled();
+    expect(songs.getCollection).not.toHaveBeenCalled();
   });
 
   it("rejeita fonte sem faixas", async () => {
-    const songs = { getSongs: vi.fn().mockResolvedValue([]) };
+    const songs = { getCollection: vi.fn().mockResolvedValue({ songs: [] }) };
     await expect(
       createDownloadJob(
         { ownerUid: "u1", url: "spotify:playlist:p" },
@@ -75,7 +95,9 @@ describe("createDownloadJob", () => {
       song(String(i)),
     );
     const repository = makeRepo();
-    const songs = { getSongs: vi.fn().mockResolvedValue(many) };
+    const songs = {
+      getCollection: vi.fn().mockResolvedValue({ songs: many }),
+    };
     await expect(
       createDownloadJob(
         { ownerUid: "u1", url: "spotify:playlist:p" },
