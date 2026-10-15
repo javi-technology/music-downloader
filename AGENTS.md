@@ -76,8 +76,9 @@ music-downloader/
   - `claimTrack` reivindica a faixa em transação (`pending` → `processing`); entregas duplicadas saem sem fazer nada;
   - `completeTrack`/`failTrack` gravam o status final **e** o contador do job na mesma transação, só a partir de `processing`;
   - erro ao gravar a conclusão **não** marca a faixa como `failed` (o MP3 já foi enviado).
-- Arquivos: `music-downloader/users/{uid}/{jobId}/{trackId}/<Artistas> - <Título>.mp3` (pasta por faixa
-  evita colisão entre faixas homônimas), com `firebaseStorageDownloadTokens` para o `getDownloadURL()` do web.
+- Arquivos: `music-downloader/users/{uid}/{jobId}/{trackId}/<Título>.mp3` (pasta por faixa
+  evita colisão entre faixas homônimas), com `firebaseStorageDownloadTokens` para o `getDownloadURL()` do web
+  e `Content-Disposition: attachment` para o navegador salvar o arquivo como `<Título>.mp3`.
 - Documentos persistidos no Firestore nunca podem conter `undefined`: omita campos opcionais ausentes.
 - Binários: `yt-dlp` e `ffmpeg` standalone são baixados em `functions/bin` durante o build na nuvem.
   Localmente, instale com `brew install yt-dlp ffmpeg` (ou defina `YT_DLP_PATH` / `FFMPEG_PATH`).

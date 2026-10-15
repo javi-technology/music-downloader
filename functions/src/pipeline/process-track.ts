@@ -35,8 +35,7 @@ export class NoMatchError extends Error {
 }
 
 export function buildFileName(song: Song): string {
-  const raw = `${song.artists.join(", ")} - ${song.name}`;
-  return `${raw.replace(/[/\\?%*:|"<>]/g, "_")}.mp3`;
+  return `${song.name.replace(/[/\\?%*:|"<>]/g, "_")}.mp3`;
 }
 
 export async function processTrack(
