@@ -14,5 +14,6 @@ export interface AudioTagger {
 }
 
 export interface FileStorage {
-  upload(localPath: string, destination: string): Promise<void>;
+  /** Salva o arquivo e devolve o caminho final (pode diferir de `destination` em colisões). */
+  upload(localPath: string, destination: string): Promise<string>;
 }

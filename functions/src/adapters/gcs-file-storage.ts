@@ -26,7 +26,7 @@ export class GcsFileStorage implements FileStorage {
     this.newToken = options.newToken ?? randomUUID;
   }
 
-  async upload(localPath: string, destination: string): Promise<void> {
+  async upload(localPath: string, destination: string): Promise<string> {
     await this.bucket.upload(localPath, {
       destination,
       contentType: "audio/mpeg",
@@ -38,6 +38,7 @@ export class GcsFileStorage implements FileStorage {
         metadata: { firebaseStorageDownloadTokens: this.newToken() },
       },
     });
+    return destination;
   }
 }
 

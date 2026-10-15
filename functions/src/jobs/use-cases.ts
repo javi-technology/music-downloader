@@ -57,11 +57,7 @@ export async function runTrack(
 
   let outcome: ProcessTrackOutcome;
   try {
-    // Pasta por faixa: faixas homônimas do mesmo job não sobrescrevem o mesmo arquivo.
-    outcome = await deps.process(
-      input.song,
-      `${input.destinationDir}/${trackId}`,
-    );
+    outcome = await deps.process(input.song, input.destinationDir);
   } catch (error) {
     await deps.repository.failTrack(
       jobId,

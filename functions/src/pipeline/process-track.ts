@@ -52,8 +52,10 @@ export async function processTrack(
   );
   await deps.tagger.tag(localPath, song);
 
-  const storagePath = `${destinationDir}/${buildFileName(song)}`;
-  await deps.storage.upload(localPath, storagePath);
+  const storagePath = await deps.storage.upload(
+    localPath,
+    `${destinationDir}/${buildFileName(song)}`,
+  );
 
   return { videoId: match.result.videoId, score: match.score, storagePath };
 }

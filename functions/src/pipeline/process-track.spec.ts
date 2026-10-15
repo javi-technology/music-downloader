@@ -73,8 +73,7 @@ describe("processTrack", () => {
     expect(outcome).toEqual({
       videoId: "good",
       score: expect.any(Number),
-      storagePath:
-        "music-downloader/users/u1/job1/Blinding Lights.mp3",
+      storagePath: "music-downloader/users/u1/job1/Blinding Lights.mp3",
     });
   });
 
