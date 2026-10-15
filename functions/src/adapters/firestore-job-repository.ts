@@ -33,18 +33,39 @@ export class FirestoreJobRepository implements JobRepository {
     return jobRef.id;
   }
 
-  async markTrackProcessing(jobId: string, trackId: string): Promise<void> {
-    await this.track(jobId, trackId).update({ status: 'processing', updatedAt: FieldValue.serverTimestamp() });
+  async claimTrack(jobId: string, trackId: string): Promise<boolean> {
+    const track = this.track(jobId, trackId);
+    return this.db.runTransaction(async (tx) => {
+      const snapshot = await tx.get(track);
+      if (snapshot.get('status') !== 'pending') return false;
+      tx.update(track, { status: 'processing', updatedAt: FieldValue.serverTimestamp() });
+      return true;
+    });
   }
 
-  async markTrackDone(jobId: string, trackId: string, result: { storagePath: string; videoId: string; score: number }): Promise<void> {
-    await this.track(jobId, trackId).update({ status: 'done', ...result, updatedAt: FieldValue.serverTimestamp() });
-    await this.job(jobId).update({ completedTracks: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp() });
+  async completeTrack(jobId: string, trackId: string, result: { storagePath: string; videoId: string; score: number }): Promise<void> {
+    await this.finishTrack(jobId, trackId, { status: 'done', ...result }, 'completedTracks');
   }
 
-  async markTrackFailed(jobId: string, trackId: string, error: string): Promise<void> {
-    await this.track(jobId, trackId).update({ status: 'failed', error, updatedAt: FieldValue.serverTimestamp() });
-    await this.job(jobId).update({ failedTracks: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp() });
+  async failTrack(jobId: string, trackId: string, error: string): Promise<void> {
+    await this.finishTrack(jobId, trackId, { status: 'failed', error }, 'failedTracks');
+  }
+
+  /** Transição final + contador do job na mesma transação, só a partir de `processing`. */
+  private async finishTrack(
+    jobId: string,
+    trackId: string,
+    data: Record<string, unknown>,
+    counter: 'completedTracks' | 'failedTracks',
+  ): Promise<void> {
+    const track = this.track(jobId, trackId);
+    await this.db.runTransaction(async (tx) => {
+      const snapshot = await tx.get(track);
+      if (snapshot.get('status') !== 'processing') return;
+      const now = FieldValue.serverTimestamp();
+      tx.update(track, { ...data, updatedAt: now });
+      tx.update(this.job(jobId), { [counter]: FieldValue.increment(1), updatedAt: now });
+    });
   }
 
   private job(jobId: string) {

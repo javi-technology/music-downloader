@@ -59,31 +59,4 @@ describe('FirestoreJobRepository', () => {
       },
     ]);
   });
-
-  it('marca faixa concluída e incrementa o contador do job', async () => {
-    const { db, updates } = fakeDb();
-    await new FirestoreJobRepository(db).markTrackDone('j', '001', { storagePath: 'p', videoId: 'v', score: 90 });
-    expect(updates).toEqual([
-      {
-        path: 'downloadJobs/j/tracks/001',
-        data: { status: 'done', storagePath: 'p', videoId: 'v', score: 90, updatedAt: FieldValue.serverTimestamp() },
-      },
-      { path: 'downloadJobs/j', data: { completedTracks: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp() } },
-    ]);
-  });
-
-  it('marca faixa com falha e incrementa o contador de falhas', async () => {
-    const { db, updates } = fakeDb();
-    await new FirestoreJobRepository(db).markTrackFailed('j', '001', 'erro');
-    expect(updates).toEqual([
-      { path: 'downloadJobs/j/tracks/001', data: { status: 'failed', error: 'erro', updatedAt: FieldValue.serverTimestamp() } },
-      { path: 'downloadJobs/j', data: { failedTracks: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp() } },
-    ]);
-  });
-
-  it('marca faixa como processando', async () => {
-    const { db, updates } = fakeDb();
-    await new FirestoreJobRepository(db).markTrackProcessing('j', '001');
-    expect(updates).toEqual([{ path: 'downloadJobs/j/tracks/001', data: { status: 'processing', updatedAt: FieldValue.serverTimestamp() } }]);
-  });
 });

@@ -38,11 +38,17 @@ export async function runTrack(
   deps: { repository: JobRepository; process: (song: Song, destinationDir: string) => Promise<ProcessTrackOutcome> },
 ): Promise<void> {
   const { jobId, trackId } = input;
-  await deps.repository.markTrackProcessing(jobId, trackId);
+  if (!(await deps.repository.claimTrack(jobId, trackId))) return;
+
+  let outcome: ProcessTrackOutcome;
   try {
-    const outcome = await deps.process(input.song, input.destinationDir);
-    await deps.repository.markTrackDone(jobId, trackId, outcome);
+    // Pasta por faixa: faixas homônimas do mesmo job não sobrescrevem o mesmo arquivo.
+    outcome = await deps.process(input.song, `${input.destinationDir}/${trackId}`);
   } catch (error) {
-    await deps.repository.markTrackFailed(jobId, trackId, error instanceof Error ? error.message : String(error));
+    await deps.repository.failTrack(jobId, trackId, error instanceof Error ? error.message : String(error));
+    return;
   }
+
+  // Falha aqui não é falha do download: propaga sem marcar a faixa como `failed`.
+  await deps.repository.completeTrack(jobId, trackId, outcome);
 }
