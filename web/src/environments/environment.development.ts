@@ -1,11 +1,10 @@
 /**
- * Configuração do app web registrado no projeto compartilhado `javitech-8797d`.
- * Preencha `apiKey`, `messagingSenderId` e `appId` com os dados do app web
- * "music-downloader" (Console Firebase > Configurações do projeto > Seus apps).
+ * Ambiente local: tudo aponta para os emuladores, então não há credenciais reais aqui.
+ * O Firebase Auth só exige uma `apiKey` não vazia para inicializar.
  */
 export const environment = {
   firebase: {
-    apiKey: '',
+    apiKey: 'demo-api-key',
     authDomain: 'javitech-8797d.firebaseapp.com',
     projectId: 'javitech-8797d',
     storageBucket: 'javitech-8797d-music-downloader',
