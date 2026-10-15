@@ -84,6 +84,23 @@ describe("TrackQueue", () => {
   });
 });
 
+describe("TrackQueue com faixa que continua pendente após erro", () => {
+  it("para a fila em vez de repetir a mesma faixa sem fim", async () => {
+    const stuck = pending("000");
+    const repository = {
+      nextPendingTrack: vi.fn(() => stuck),
+      resetProcessing: vi.fn(() => 0),
+    };
+    const process = vi.fn().mockRejectedValue(new Error("banco travado"));
+    const queue = new TrackQueue({ repository, process, onError: vi.fn() });
+
+    queue.start();
+    await queue.idle();
+
+    expect(process).toHaveBeenCalledOnce();
+  });
+});
+
 describe("jobFolder", () => {
   it("usa o título do álbum/playlist como pasta", () => {
     expect(jobFolder("After Hours")).toBe("After Hours");
