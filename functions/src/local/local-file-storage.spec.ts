@@ -19,9 +19,14 @@ describe("LocalFileStorage", () => {
   const storage = () => new LocalFileStorage(() => join(root, "Music"));
 
   it("copia o arquivo para a pasta de destino (criando-a) e devolve o caminho absoluto", async () => {
-    const saved = await storage().upload(source, "After Hours/Blinding Lights.mp3");
+    const saved = await storage().upload(
+      source,
+      "After Hours/Blinding Lights.mp3",
+    );
 
-    expect(saved).toBe(join(root, "Music", "After Hours", "Blinding Lights.mp3"));
+    expect(saved).toBe(
+      join(root, "Music", "After Hours", "Blinding Lights.mp3"),
+    );
     expect(await readFile(saved, "utf8")).toBe("audio");
   });
 
@@ -47,7 +52,9 @@ describe("LocalFileStorage", () => {
     await dynamic.upload(source, "./a.mp3");
     base = join(root, "Segunda");
 
-    expect(await dynamic.upload(source, "./a.mp3")).toBe(join(root, "Segunda", "a.mp3"));
+    expect(await dynamic.upload(source, "./a.mp3")).toBe(
+      join(root, "Segunda", "a.mp3"),
+    );
   });
 
   it("recusa destinos fora da pasta base", async () => {
