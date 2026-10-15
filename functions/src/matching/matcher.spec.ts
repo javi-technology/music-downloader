@@ -187,20 +187,22 @@ describe("pickIsrcMatch", () => {
 
   it("aceita a faixa oficial mesmo quando o YouTube Music lista só o artista principal", () => {
     expect(scoreResult(deTodaCor, official)).toBeNull();
-    expect(pickIsrcMatch(deTodaCor, [official, unrelated])?.result.videoId).toBe(
-      "W-zaWXA8aRE",
-    );
+    expect(
+      pickIsrcMatch(deTodaCor, [official, unrelated])?.result.videoId,
+    ).toBe("W-zaWXA8aRE");
   });
 
   it("ignora resultados sem relação que a busca por ISRC também devolve", () => {
-    expect(pickIsrcMatch(deTodaCor, [unrelated, official])?.result.videoId).toBe(
-      "W-zaWXA8aRE",
-    );
+    expect(
+      pickIsrcMatch(deTodaCor, [unrelated, official])?.result.videoId,
+    ).toBe("W-zaWXA8aRE");
     expect(pickIsrcMatch(deTodaCor, [unrelated])).toBeNull();
   });
 
   it("ignora vídeos (resultados não verificados)", () => {
-    expect(pickIsrcMatch(deTodaCor, [{ ...official, verified: false }])).toBeNull();
+    expect(
+      pickIsrcMatch(deTodaCor, [{ ...official, verified: false }]),
+    ).toBeNull();
   });
 
   it("rejeita resultado de outro artista principal", () => {

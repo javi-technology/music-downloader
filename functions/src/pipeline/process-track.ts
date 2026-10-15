@@ -5,7 +5,11 @@ import type {
   MusicSearcher,
 } from "../domain/ports.js";
 import type { Song } from "../domain/types.js";
-import { pickBestMatch } from "../matching/matcher.js";
+import {
+  type ScoredResult,
+  pickBestMatch,
+  pickIsrcMatch,
+} from "../matching/matcher.js";
 
 export interface ProcessTrackDeps {
   searcher: MusicSearcher;
@@ -40,10 +44,7 @@ export async function processTrack(
   destinationDir: string,
   deps: ProcessTrackDeps,
 ): Promise<ProcessTrackOutcome> {
-  const results = await deps.searcher.search(
-    `${song.artists.join(", ")} - ${song.name}`,
-  );
-  const match = pickBestMatch(song, results);
+  const match = await findMatch(song, deps.searcher);
   if (!match) throw new NoMatchError(song);
 
   const localPath = await deps.downloader.download(
@@ -56,4 +57,19 @@ export async function processTrack(
   await deps.storage.upload(localPath, storagePath);
 
   return { videoId: match.result.videoId, score: match.score, storagePath };
+}
+
+/** Como o spotDL: tenta o ISRC primeiro e só então a busca textual "artistas - título". */
+async function findMatch(
+  song: Song,
+  searcher: MusicSearcher,
+): Promise<ScoredResult | null> {
+  if (song.isrc) {
+    const match = pickIsrcMatch(song, await searcher.search(song.isrc));
+    if (match) return match;
+  }
+  const results = await searcher.search(
+    `${song.artists.join(", ")} - ${song.name}`,
+  );
+  return pickBestMatch(song, results);
 }
