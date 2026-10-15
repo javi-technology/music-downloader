@@ -27,7 +27,9 @@ describe("startLocalApp", () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  const start = (overrides: Partial<Parameters<typeof startLocalApp>[0]> = {}) =>
+  const start = (
+    overrides: Partial<Parameters<typeof startLocalApp>[0]> = {},
+  ) =>
     startLocalApp({
       dataDir: join(dir, "data"),
       defaultDownloadDir: join(dir, "Music"),
@@ -81,13 +83,18 @@ describe("startLocalApp", () => {
       body: JSON.stringify({ spotifyClientId: "id", spotifyClientSecret: "s" }),
     });
     const reply = await postJob("https://open.spotify.com/album/x");
-    const { jobId } = await reply.json();
+    const { jobId } = (await reply.json()) as { jobId: string };
     await app.idle();
 
     expect(reply.status).toBe(201);
-    expect(songSource).toHaveBeenCalledWith({ clientId: "id", clientSecret: "s" });
+    expect(songSource).toHaveBeenCalledWith({
+      clientId: "id",
+      clientSecret: "s",
+    });
     expect(processSong).toHaveBeenCalledWith(song, "After Hours");
-    const tracks = await (await api(`/api/jobs/${jobId}/tracks`)).json();
+    const tracks = (await (await api(`/api/jobs/${jobId}/tracks`)).json()) as {
+      status: string;
+    }[];
     expect(tracks[0]).toMatchObject({ status: "done" });
   });
 
@@ -102,8 +109,9 @@ describe("startLocalApp", () => {
 
     app = await start();
 
-    expect((await (await api("/api/settings")).json()).spotifyConfigured).toBe(
-      true,
-    );
+    const settings = (await (await api("/api/settings")).json()) as {
+      spotifyConfigured: boolean;
+    };
+    expect(settings.spotifyConfigured).toBe(true);
   });
 });
