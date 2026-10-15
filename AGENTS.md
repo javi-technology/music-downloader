@@ -56,7 +56,15 @@ music-downloader/
 │   ├── scripts/fetch-binaries.sh  # Baixa yt-dlp/ffmpeg no build da função (`gcp-build`)
 │   └── vitest.config.ts
 └── web/                    # Frontend — Angular + Tailwind
-    └── src/app/            # Componentes, serviços e rotas (testes *.spec.ts ao lado)
+    └── src/
+        ├── environments/       # Config do app web Firebase (+ emuladores em development)
+        └── app/
+            ├── core/           # provideFirebase() (database/bucket/região isolados), validadores
+            ├── auth/           # AuthGateway (abstração) + implementação Firebase Auth
+            ├── jobs/           # JobsGateway, modelos, mappers do Firestore, card de job
+            ├── pages/          # Páginas roteadas (home)
+            ├── testing/        # Fakes dos gateways para testes (fora do build de produção)
+            └── **/*.spec.ts    # Testes ao lado do código testado
 ```
 
 ## Arquitetura do backend
@@ -74,6 +82,8 @@ music-downloader/
 - Binários: `yt-dlp` e `ffmpeg` standalone são baixados em `functions/bin` durante o build na nuvem.
   Localmente, instale com `brew install yt-dlp ffmpeg` (ou defina `YT_DLP_PATH` / `FFMPEG_PATH`).
 - Domínio puro (matcher, pipeline, casos de uso) **não** importa SDKs: dependências entram por portas.
+- No frontend, componentes dependem apenas de `AuthGateway`/`JobsGateway` (classes abstratas); o
+  Firebase fica em `core/firebase.ts` e `*/firebase-*.gateway.ts`. Nos testes, use `testing/fakes.ts`.
 
 ## Projeto Firebase compartilhado — isolamento OBRIGATÓRIO
 
