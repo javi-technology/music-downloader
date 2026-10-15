@@ -17,6 +17,7 @@ import {
   type SettingsUpdate,
 } from "./settings.js";
 import type { JobView, TrackView } from "./sqlite-job-repository.js";
+import type { ToolsStatus } from "./tools/tool-manager.js";
 
 export class SpotifyNotConfiguredError extends Error {
   constructor() {
@@ -25,10 +26,23 @@ export class SpotifyNotConfiguredError extends Error {
   }
 }
 
+export class ToolsNotReadyError extends Error {
+  constructor() {
+    super(
+      "As ferramentas de download (yt-dlp, ffmpeg e deno) ainda não estão instaladas",
+    );
+    this.name = "ToolsNotReadyError";
+  }
+}
+
 export interface LocalServerDeps {
   settings: {
     publicView(): PublicSettings;
     update(changes: SettingsUpdate): void;
+  };
+  tools: {
+    status(): ToolsStatus;
+    install(): Promise<void>;
   };
   repository: {
     listJobs(): JobView[];
@@ -78,6 +92,13 @@ async function handle(
   checkOrigin(req, deps.allowedOrigins ?? []);
 
   const method = req.method ?? "GET";
+  // Exigir JSON obriga um preflight CORS em chamadas de outros sites, que este servidor não autoriza.
+  if (
+    method !== "GET" &&
+    !req.headers["content-type"]?.startsWith("application/json")
+  )
+    throw new HttpError(415, "Envie o corpo em JSON");
+
   const path = new URL(req.url ?? "/", "http://localhost").pathname;
   const segments = path.split("/").filter(Boolean).map(decodeURIComponent);
   if (segments[0] !== "api") throw new HttpError(404, "Não encontrado");
@@ -92,6 +113,16 @@ async function handle(
         if (typeof body[field] === "string") changes[field] = body[field];
       deps.settings.update(changes);
       return sendJson(res, 200, deps.settings.publicView());
+    }
+  }
+
+  if (route[0] === "tools") {
+    if (route.length === 1 && method === "GET")
+      return sendJson(res, 200, deps.tools.status());
+    if (route.length === 2 && route[1] === "install" && method === "POST") {
+      // Pode levar minutos: o progresso chega pelo evento SSE `tools`.
+      deps.tools.install().catch((error: unknown) => console.error(error));
+      return sendJson(res, 202, deps.tools.status());
     }
   }
 
@@ -144,10 +175,6 @@ function checkOrigin(req: IncomingMessage, allowedOrigins: string[]): void {
 async function readJson(
   req: IncomingMessage,
 ): Promise<Record<string, unknown>> {
-  // Exigir JSON obriga um preflight CORS em chamadas de outros sites, que este servidor não autoriza.
-  if (!req.headers["content-type"]?.startsWith("application/json"))
-    throw new HttpError(415, "Envie o corpo em JSON");
-
   let size = 0;
   const chunks: Buffer[] = [];
   for await (const chunk of req as AsyncIterable<Buffer>) {
@@ -213,8 +240,8 @@ function streamEvents(
   });
   res.write(": conectado\n\n");
 
-  const unsubscribe = feed.subscribe((jobId) =>
-    res.write(`event: job\ndata: ${JSON.stringify({ jobId })}\n\n`),
+  const unsubscribe = feed.subscribe((event, data) =>
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
   );
   // Mantém a conexão viva atrás de proxies e detecta navegadores que sumiram.
   const heartbeat = setInterval(() => res.write(": ping\n\n"), 25_000);
@@ -235,6 +262,7 @@ const DOMAIN_ERRORS = [
   [InvalidSettingsError, 400],
   [EmptySourceError, 404],
   [SpotifyNotConfiguredError, 409],
+  [ToolsNotReadyError, 409],
   [TooManyTracksError, 422],
 ] as const;
 
