@@ -8,9 +8,9 @@ const song = (id: string): Song => ({ spotifyId: id, name: `Song ${id}`, artists
 function makeRepo() {
   return {
     createJob: vi.fn().mockResolvedValue('job1'),
-    markTrackProcessing: vi.fn().mockResolvedValue(undefined),
-    markTrackDone: vi.fn().mockResolvedValue(undefined),
-    markTrackFailed: vi.fn().mockResolvedValue(undefined),
+    claimTrack: vi.fn().mockResolvedValue(true),
+    completeTrack: vi.fn().mockResolvedValue(undefined),
+    failTrack: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -57,26 +57,49 @@ describe('createDownloadJob', () => {
 });
 
 describe('runTrack', () => {
-  it('marca a faixa como processando e depois concluída', async () => {
+  const input = { jobId: 'j', trackId: '007', song: song('1'), destinationDir: 'p' };
+
+  it('reivindica a faixa, processa em uma pasta própria e conclui', async () => {
     const repository = makeRepo();
-    const outcome = { storagePath: 'p/x.mp3', videoId: 'v', score: 95 };
+    const outcome = { storagePath: 'p/007/x.mp3', videoId: 'v', score: 95 };
     const process = vi.fn().mockResolvedValue(outcome);
 
-    await runTrack({ jobId: 'j', trackId: 't', song: song('1'), destinationDir: 'p' }, { repository, process });
+    await runTrack(input, { repository, process });
 
-    expect(repository.markTrackProcessing).toHaveBeenCalledWith('j', 't');
-    expect(process).toHaveBeenCalledWith(song('1'), 'p');
-    expect(repository.markTrackDone).toHaveBeenCalledWith('j', 't', outcome);
-    expect(repository.markTrackFailed).not.toHaveBeenCalled();
+    expect(repository.claimTrack).toHaveBeenCalledWith('j', '007');
+    expect(process).toHaveBeenCalledWith(song('1'), 'p/007');
+    expect(repository.completeTrack).toHaveBeenCalledWith('j', '007', outcome);
+    expect(repository.failTrack).not.toHaveBeenCalled();
   });
 
-  it('marca a faixa como falha com a mensagem do erro, sem relançar', async () => {
+  it('não processa entrega duplicada de faixa já reivindicada', async () => {
+    const repository = makeRepo();
+    repository.claimTrack.mockResolvedValue(false);
+    const process = vi.fn();
+
+    await runTrack(input, { repository, process });
+
+    expect(process).not.toHaveBeenCalled();
+    expect(repository.completeTrack).not.toHaveBeenCalled();
+    expect(repository.failTrack).not.toHaveBeenCalled();
+  });
+
+  it('registra falha do processamento com a mensagem do erro, sem relançar', async () => {
     const repository = makeRepo();
     const process = vi.fn().mockRejectedValue(new Error('yt-dlp falhou'));
 
-    await runTrack({ jobId: 'j', trackId: 't', song: song('1'), destinationDir: 'p' }, { repository, process });
+    await runTrack(input, { repository, process });
 
-    expect(repository.markTrackFailed).toHaveBeenCalledWith('j', 't', 'yt-dlp falhou');
-    expect(repository.markTrackDone).not.toHaveBeenCalled();
+    expect(repository.failTrack).toHaveBeenCalledWith('j', '007', 'yt-dlp falhou');
+    expect(repository.completeTrack).not.toHaveBeenCalled();
+  });
+
+  it('não marca como falha um download concluído quando a gravação final falha', async () => {
+    const repository = makeRepo();
+    repository.completeTrack.mockRejectedValue(new Error('firestore indisponível'));
+    const process = vi.fn().mockResolvedValue({ storagePath: 'p/007/x.mp3', videoId: 'v', score: 95 });
+
+    await expect(runTrack(input, { repository, process })).rejects.toThrow('firestore indisponível');
+    expect(repository.failTrack).not.toHaveBeenCalled();
   });
 });
