@@ -7,6 +7,8 @@ export interface NewJob {
   ownerUid: string;
   sourceUrl: string;
   source: SpotifyResource;
+  /** Nome do álbum/playlist; ausente em faixa avulsa. */
+  title?: string;
   songs: Song[];
 }
 
@@ -28,6 +30,11 @@ export interface JobRepository {
   failTrack(jobId: string, trackId: string, error: string): Promise<void>;
 }
 
+export interface SongCollection {
+  title?: string;
+  songs: Song[];
+}
+
 export interface SongSource {
-  getSongs(resource: SpotifyResource): Promise<Song[]>;
+  getCollection(resource: SpotifyResource): Promise<SongCollection>;
 }

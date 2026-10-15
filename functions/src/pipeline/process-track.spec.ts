@@ -24,7 +24,9 @@ function makeDeps(results: SearchResult[] = [goodResult]) {
     searcher: { search: vi.fn().mockResolvedValue(results) },
     downloader: { download: vi.fn().mockResolvedValue("/tmp/work/good.mp3") },
     tagger: { tag: vi.fn().mockResolvedValue(undefined) },
-    storage: { upload: vi.fn().mockResolvedValue(undefined) },
+    storage: {
+      upload: vi.fn(async (_local: string, destination: string) => destination),
+    },
     workDir: "/tmp/work",
   };
 }
@@ -71,9 +73,17 @@ describe("processTrack", () => {
     expect(outcome).toEqual({
       videoId: "good",
       score: expect.any(Number),
-      storagePath:
-        "music-downloader/users/u1/job1/Blinding Lights.mp3",
+      storagePath: "music-downloader/users/u1/job1/Blinding Lights.mp3",
     });
+  });
+
+  it("devolve o caminho final informado pelo armazenamento (que pode renomear em colisões)", async () => {
+    const deps = makeDeps();
+    deps.storage.upload.mockResolvedValue("Album/Blinding Lights (2).mp3");
+
+    const outcome = await processTrack(song, "Album", deps);
+
+    expect(outcome.storagePath).toBe("Album/Blinding Lights (2).mp3");
   });
 
   it("lança NoMatchError e não baixa nada quando não há correspondência", async () => {
