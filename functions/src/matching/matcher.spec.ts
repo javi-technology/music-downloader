@@ -58,6 +58,10 @@ describe('scoreResult', () => {
     expect(scoreResult(br, result({ name: 'garota de ipanema', artists: ['Joao Gilberto'], album: 'X' }))).toBeGreaterThanOrEqual(90);
   });
 
+  it('não penaliza faixa oficial lançada como single (álbum diferente do Spotify)', () => {
+    expect(scoreResult(song, result({ album: 'Blinding Lights', durationSeconds: 202 }))).toBeGreaterThanOrEqual(90);
+  });
+
   it('nunca passa de 100', () => {
     expect(scoreResult(song, result())).toBeLessThanOrEqual(100);
   });
@@ -77,5 +81,21 @@ describe('pickBestMatch', () => {
     ]);
     expect(best?.result.videoId).toBe('certo');
     expect(best?.score).toBeGreaterThanOrEqual(90);
+  });
+
+  it('prefere a faixa oficial (verificada) a uploads de terceiros com título "Artista - Música"', () => {
+    const best = pickBestMatch(song, [
+      result({ videoId: 'upload', name: 'The Weeknd - Blinding Lights (Lyrics)', artists: ['4Words'], album: undefined, verified: false, durationSeconds: 200 }),
+      result({ videoId: 'oficial', album: 'Blinding Lights', durationSeconds: 202 }),
+    ]);
+    expect(best?.result.videoId).toBe('oficial');
+  });
+
+  it('usa vídeo não verificado quando não há faixa oficial compatível', () => {
+    const best = pickBestMatch(song, [
+      result({ videoId: 'outra', name: 'Blinding Lights', artists: ['Cover Band'] }),
+      result({ videoId: 'video', name: 'The Weeknd - Blinding Lights', artists: [], album: undefined, verified: false }),
+    ]);
+    expect(best?.result.videoId).toBe('video');
   });
 });
