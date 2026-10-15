@@ -23,7 +23,7 @@ const newJob = (overrides: Partial<NewJob> = {}): NewJob => ({
 
 describe("SqliteJobRepository", () => {
   let repository: SqliteJobRepository;
-  let onChange: ReturnType<typeof vi.fn>;
+  let onChange: ReturnType<typeof vi.fn<(jobId: string) => void>>;
   let clock: number;
   let ids: number;
 
