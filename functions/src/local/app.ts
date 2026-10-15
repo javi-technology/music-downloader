@@ -5,7 +5,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import YTMusic from "ytmusic-api";
-import { resolveBinary } from "../adapters/binaries.js";
 import { Id3Tagger } from "../adapters/id3-tagger.js";
 import { YtDlpDownloader } from "../adapters/ytdlp-downloader.js";
 import { YTMusicSearcher } from "../adapters/ytmusic-searcher.js";
@@ -18,11 +17,18 @@ import {
 } from "../pipeline/process-track.js";
 import { SpotifyClient } from "../spotify/client.js";
 import { ChangeFeed } from "./change-feed.js";
-import { SpotifyNotConfiguredError, createLocalServer } from "./http-server.js";
+import {
+  SpotifyNotConfiguredError,
+  ToolsNotReadyError,
+  createLocalServer,
+} from "./http-server.js";
 import { LocalFileStorage } from "./local-file-storage.js";
 import { SettingsStore } from "./settings.js";
 import { SqliteJobRepository } from "./sqlite-job-repository.js";
 import { TrackQueue, jobFolder } from "./track-queue.js";
+import { type ToolSpec, toolCatalog } from "./tools/catalog.js";
+import { extractTarXz } from "./tools/tar.js";
+import { type ToolPaths, ToolManager } from "./tools/tool-manager.js";
 
 /** O app local é de um único usuário: não há login. */
 const LOCAL_OWNER = "local";
@@ -34,6 +40,7 @@ export interface LocalAppOptions {
   port: number;
   allowedOrigins?: string[];
   /** Substituíveis em testes: fonte das faixas e processamento de uma faixa. */
+  tools?: LocalTools;
   songSource?: (credentials: {
     clientId: string;
     clientSecret: string;
@@ -43,6 +50,14 @@ export interface LocalAppOptions {
     destinationDir: string,
   ) => Promise<ProcessTrackOutcome>;
 }
+
+/** O que o app usa do `ToolManager` (substituível em testes). */
+export type LocalTools = Pick<
+  ToolManager,
+  "status" | "install" | "updateYtDlpIfStale" | "paths"
+>;
+
+const YT_DLP_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface LocalApp {
   url: string;
@@ -61,14 +76,22 @@ export async function startLocalApp(
   const feed = new ChangeFeed();
   const db = new DatabaseSync(join(options.dataDir, "music-downloader.db"));
   const repository = new SqliteJobRepository(db, {
-    onChange: (jobId) => feed.publish(jobId),
+    onChange: (jobId) => feed.publish("job", { jobId }),
   });
+  const tools =
+    options.tools ??
+    new ToolManager({
+      binDir: join(options.dataDir, "bin"),
+      catalog: catalogForThisSystem(),
+      extractTarXz,
+      onChange: (status) => feed.publish("tools", status),
+    });
 
   const songSource = options.songSource ?? cachedSpotifyClient();
   const processSong =
     options.processSong ??
     downloadSong({
-      binDir: join(options.dataDir, "bin"),
+      tools: () => tools.paths(),
       downloadDir: () => settings.get().downloadDir,
     });
 
@@ -85,10 +108,12 @@ export async function startLocalApp(
 
   const server = createLocalServer({
     settings,
+    tools,
     repository,
     feed,
     allowedOrigins: options.allowedOrigins,
     createJob: async (url) => {
+      if (!tools.status().ready) throw new ToolsNotReadyError();
       const { spotifyClientId, spotifyClientSecret } = settings.get();
       if (!spotifyClientId || !spotifyClientSecret)
         throw new SpotifyNotConfiguredError();
@@ -113,6 +138,11 @@ export async function startLocalApp(
     server.listen(options.port, "127.0.0.1", () => resolve());
   });
   queue.start();
+  // Em segundo plano: o progresso chega ao navegador pelo evento SSE `tools`.
+  const logToolError = (error: unknown) =>
+    console.error("Falha ao preparar as ferramentas:", error);
+  tools.install().catch(logToolError);
+  tools.updateYtDlpIfStale(YT_DLP_MAX_AGE_MS).catch(logToolError);
 
   const { port } = server.address() as AddressInfo;
   return {
@@ -140,7 +170,7 @@ function cachedSpotifyClient(): NonNullable<LocalAppOptions["songSource"]> {
 
 /** Pipeline real: YouTube Music → yt-dlp/ffmpeg → tags ID3 → pasta de músicas. */
 function downloadSong(paths: {
-  binDir: string;
+  tools: () => ToolPaths;
   downloadDir: () => string;
 }): NonNullable<LocalAppOptions["processSong"]> {
   const searcher = new YTMusicSearcher(new YTMusic());
@@ -149,12 +179,14 @@ function downloadSong(paths: {
 
   return async (song, destinationDir) => {
     const workDir = await mkdtemp(join(tmpdir(), "md-"));
+    const tools = paths.tools();
     try {
       return await processTrack(song, destinationDir, {
         searcher,
         downloader: new YtDlpDownloader({
-          ytDlpPath: resolveBinary("yt-dlp", { binDir: paths.binDir }),
-          ffmpegPath: resolveBinary("ffmpeg", { binDir: paths.binDir }),
+          ytDlpPath: tools.ytDlp,
+          ffmpegPath: tools.ffmpeg,
+          denoPath: tools.deno,
         }),
         tagger,
         storage,
@@ -164,4 +196,14 @@ function downloadSong(paths: {
       await rm(workDir, { recursive: true, force: true });
     }
   };
+}
+
+/** Em sistemas sem binários conhecidos, o app usa só o que estiver instalado no sistema. */
+function catalogForThisSystem(): ToolSpec[] {
+  try {
+    return toolCatalog(process.platform, process.arch);
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
 }

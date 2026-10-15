@@ -24,7 +24,33 @@ describe("buildYtDlpArgs", () => {
   });
 });
 
+describe("buildYtDlpArgs com deno", () => {
+  it("aponta o runtime JavaScript do yt-dlp para o deno informado", () => {
+    const args = buildYtDlpArgs("abc", "/tmp/out", "/bin/ffmpeg", "/bin/deno");
+
+    const index = args.indexOf("--js-runtimes");
+    expect(index).toBeGreaterThan(-1);
+    expect(args[index + 1]).toBe("deno:/bin/deno");
+    expect(args.at(-1)).toBe("https://music.youtube.com/watch?v=abc");
+  });
+});
+
 describe("YtDlpDownloader", () => {
+  it("repassa o deno configurado ao yt-dlp", async () => {
+    const run = vi.fn().mockResolvedValue({ stdout: "/tmp/out/abc.mp3\n" });
+    await new YtDlpDownloader({
+      ytDlpPath: "/bin/yt-dlp",
+      ffmpegPath: "/bin/ffmpeg",
+      denoPath: "/bin/deno",
+      run,
+    }).download("abc", "/tmp/out");
+
+    expect(run).toHaveBeenCalledWith(
+      "/bin/yt-dlp",
+      buildYtDlpArgs("abc", "/tmp/out", "/bin/ffmpeg", "/bin/deno"),
+    );
+  });
+
   it("executa o yt-dlp e retorna o caminho final impresso", async () => {
     const run = vi
       .fn()

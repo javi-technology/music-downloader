@@ -24,6 +24,8 @@ export function buildYtDlpArgs(
   videoId: string,
   outputDir: string,
   ffmpegPath: string,
+  /** Sem um runtime JavaScript, o yt-dlp não resolve os desafios do YouTube e perde formatos. */
+  denoPath?: string,
 ): string[] {
   return [
     "--no-playlist",
@@ -37,6 +39,7 @@ export function buildYtDlpArgs(
     "0",
     "--ffmpeg-location",
     ffmpegPath,
+    ...(denoPath ? ["--js-runtimes", `deno:${denoPath}`] : []),
     "-o",
     `${outputDir}/%(id)s.%(ext)s`,
     "--print",
@@ -50,6 +53,7 @@ export class YtDlpDownloader implements AudioDownloader {
     private readonly options: {
       ytDlpPath: string;
       ffmpegPath: string;
+      denoPath?: string;
       run?: CommandRunner;
       sleep?: (ms: number) => Promise<void>;
     },
@@ -57,7 +61,12 @@ export class YtDlpDownloader implements AudioDownloader {
 
   async download(videoId: string, outputDir: string): Promise<string> {
     const { stdout } = await this.runWithRetry(
-      buildYtDlpArgs(videoId, outputDir, this.options.ffmpegPath),
+      buildYtDlpArgs(
+        videoId,
+        outputDir,
+        this.options.ffmpegPath,
+        this.options.denoPath,
+      ),
     );
     const filePath = stdout.trim().split("\n").filter(Boolean).at(-1);
     if (!filePath)

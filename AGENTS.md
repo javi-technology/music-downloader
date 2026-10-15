@@ -78,6 +78,10 @@ usuário e é usado pelo navegador). Enquanto a migração não termina, os dois
 - `http-server.ts`: API em `127.0.0.1` (`/api/settings`, `/api/jobs`, `/api/events` via SSE). Toda
   requisição passa pela checagem de `Host` (DNS rebinding) e `Origin`; o client secret nunca sai do servidor.
 - Arquivos: `<pasta de músicas>/<Álbum ou Playlist>/<Título>.mp3` (faixa avulsa na raiz), sem sobrescrever.
+- Binários (`tools/`): o `ToolManager` baixa **yt-dlp, ffmpeg/ffprobe e deno** para `<pasta de dados>/bin` na
+  primeira execução (catálogo por sistema em `tools/catalog.ts`; zip extraído em Node puro, `.tar.xz` pelo `tar`
+  do sistema) e atualiza o yt-dlp com mais de 7 dias. Ferramentas já presentes no PATH são reaproveitadas.
+  O **deno** é obrigatório: o yt-dlp o usa (`--js-runtimes`) para resolver os desafios do YouTube.
 - Rodar: `npm --prefix functions run local` (variáveis opcionais: `MD_PORT`, `MD_DATA_DIR`,
   `MD_ALLOWED_ORIGINS`).
 

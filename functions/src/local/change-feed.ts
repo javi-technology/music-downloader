@@ -1,6 +1,6 @@
-type Listener = (jobId: string) => void;
+type Listener = (event: string, data: unknown) => void;
 
-/** Avisa os navegadores conectados (SSE) quando um job muda. */
+/** Avisa os navegadores conectados (SSE) quando algo muda: jobs (`job`) e ferramentas (`tools`). */
 export class ChangeFeed {
   private readonly listeners = new Set<Listener>();
 
@@ -8,8 +8,8 @@ export class ChangeFeed {
     return this.listeners.size;
   }
 
-  publish(jobId: string): void {
-    for (const listener of this.listeners) listener(jobId);
+  publish(event: string, data: unknown): void {
+    for (const listener of this.listeners) listener(event, data);
   }
 
   subscribe(listener: Listener): () => void {
