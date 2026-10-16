@@ -4,7 +4,13 @@
       <p class="text-xs font-medium uppercase tracking-wide text-emerald-400">
         {{ sourceLabel() }}
       </p>
-      <p class="truncate text-sm text-zinc-400" [title]="job().sourceUrl">{{ job().sourceUrl }}</p>
+      @if (job().title; as title) {
+        <p class="truncate text-sm font-medium" [title]="job().sourceUrl">{{ title }}</p>
+      } @else {
+        <p class="truncate text-sm text-zinc-400" [title]="job().sourceUrl">
+          {{ job().sourceUrl }}
+        </p>
+      }
     </div>
     <div class="shrink-0 text-right">
       <p class="text-sm font-semibold tabular-nums">
