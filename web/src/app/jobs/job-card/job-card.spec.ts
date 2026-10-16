@@ -30,6 +30,19 @@ describe('JobCard', () => {
     ).toBe('50');
   });
 
+  it('mostra o nome do álbum/playlist quando existe, senão o link', async () => {
+    const titled = await render(makeJob({ title: 'After Hours' }));
+    expect((titled.nativeElement as HTMLElement).querySelector('header')!.textContent).toContain(
+      'After Hours',
+    );
+    TestBed.resetTestingModule();
+
+    const untitled = await render(makeJob({ title: undefined }));
+    expect((untitled.nativeElement as HTMLElement).querySelector('header')!.textContent).toContain(
+      'https://open.spotify.com/album/x',
+    );
+  });
+
   it('lista as faixas do job com status', async () => {
     const fixture = await render();
     expect(gateway.watchTracks).toHaveBeenCalledWith('j1');

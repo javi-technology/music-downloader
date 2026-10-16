@@ -1,17 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { App } from './app';
-import { AuthGateway } from './auth/auth.gateway';
-import { FakeAuthGateway } from './testing/fakes';
 
 describe('App', () => {
-  let auth: FakeAuthGateway;
-
   beforeEach(async () => {
-    auth = new FakeAuthGateway();
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([]), { provide: AuthGateway, useValue: auth }],
+      providers: [provideRouter([])],
     }).compileComponents();
   });
 
@@ -29,16 +24,12 @@ describe('App', () => {
     expect((await render()).querySelector('main router-outlet')).not.toBeNull();
   });
 
-  it('não mostra o botão de sair sem usuário', async () => {
-    expect((await render()).querySelector('[data-testid=sign-out]')).toBeNull();
-  });
-
-  it('mostra o usuário e permite sair', async () => {
-    auth.user.set({ uid: 'u1', displayName: 'Vini' });
+  it('tem navegação para o início e para as configurações, sem login', async () => {
     const el = await render();
-    expect(el.querySelector('header')?.textContent).toContain('Vini');
-
-    el.querySelector<HTMLButtonElement>('[data-testid=sign-out]')!.click();
-    expect(auth.signOut).toHaveBeenCalled();
+    const links = [...el.querySelectorAll<HTMLAnchorElement>('header nav a')].map((a) =>
+      a.getAttribute('href'),
+    );
+    expect(links).toEqual(['/', '/configuracoes']);
+    expect(el.querySelector('[data-testid=sign-out]')).toBeNull();
   });
 });
