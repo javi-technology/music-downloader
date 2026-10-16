@@ -16,7 +16,9 @@ export class FakeJobsGateway extends JobsGateway {
   createJob = vi.fn(async (_url: string) => ({ jobId: 'novo', totalTracks: 1 }));
   watchJobs = vi.fn(() => this.jobs$.asObservable());
   watchTracks = vi.fn((_jobId: string) => this.tracks$.asObservable());
-  downloadUrl = vi.fn((jobId: string, trackId: string) => `/api/jobs/${jobId}/tracks/${trackId}/file`);
+  downloadUrl = vi.fn(
+    (jobId: string, trackId: string) => `/api/jobs/${jobId}/tracks/${trackId}/file`,
+  );
 }
 
 export function makeJob(overrides: Partial<DownloadJob> = {}): DownloadJob {

@@ -6,6 +6,8 @@ export interface DownloadJob {
   id: string;
   sourceUrl: string;
   source: { type: SourceType; id: string };
+  /** Nome do álbum/playlist (ausente em faixa avulsa). */
+  title?: string;
   totalTracks: number;
   completedTracks: number;
   failedTracks: number;

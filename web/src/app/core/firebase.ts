@@ -7,7 +7,7 @@ import { FirebaseStorage, connectStorageEmulator, getStorage } from 'firebase/st
 import { environment } from '../../environments/environment';
 import { AuthGateway } from '../auth/auth.gateway';
 import { FirebaseAuthGateway } from '../auth/firebase-auth.gateway';
-import { FirebaseJobsGateway } from '../jobs/firebase-jobs.gateway';
+import { HttpJobsGateway } from '../jobs/http-jobs.gateway';
 import { JobsGateway } from '../jobs/jobs.gateway';
 
 export const FIREBASE_AUTH = new InjectionToken<Auth>('FIREBASE_AUTH');
@@ -37,6 +37,6 @@ export function provideFirebase(): EnvironmentProviders {
     { provide: FUNCTIONS, useValue: functions },
     { provide: STORAGE, useValue: storage },
     { provide: AuthGateway, useClass: FirebaseAuthGateway },
-    { provide: JobsGateway, useClass: FirebaseJobsGateway },
+    { provide: JobsGateway, useClass: HttpJobsGateway },
   ]);
 }
