@@ -56,13 +56,14 @@ music-downloader/
 │   ├── scripts/fetch-binaries.sh  # Baixa yt-dlp/ffmpeg no build da função (`gcp-build`)
 │   └── vitest.config.ts
 └── web/                    # Frontend — Angular + Tailwind
+    ├── proxy.conf.json     # `ng serve`: encaminha /api para o servidor local
     └── src/
-        ├── environments/       # Config do app web Firebase (+ emuladores em development)
         └── app/
-            ├── core/           # provideFirebase() (database/bucket/região isolados), validadores
-            ├── auth/           # AuthGateway (abstração) + implementação Firebase Auth
-            ├── jobs/           # JobsGateway, modelos, mappers do Firestore, card de job
-            ├── pages/          # Páginas roteadas (home)
+            ├── core/           # provideLocalApi(), ServerEvents (SSE), erros da API, validadores
+            ├── jobs/           # JobsGateway + HttpJobsGateway, modelos, card de job
+            ├── settings/       # SettingsGateway + HttpSettingsGateway (Spotify, pasta de destino)
+            ├── tools/          # ToolsGateway + HttpToolsGateway (yt-dlp, ffmpeg, deno)
+            ├── pages/          # Páginas roteadas (início, configurações)
             ├── testing/        # Fakes dos gateways para testes (fora do build de produção)
             └── **/*.spec.ts    # Testes ao lado do código testado
 ```
@@ -83,7 +84,7 @@ usuário e é usado pelo navegador). Enquanto a migração não termina, os dois
   do sistema) e atualiza o yt-dlp com mais de 7 dias. Ferramentas já presentes no PATH são reaproveitadas.
   O **deno** é obrigatório: o yt-dlp o usa (`--js-runtimes`) para resolver os desafios do YouTube.
 - Rodar: `npm --prefix functions run local` (variáveis opcionais: `MD_PORT`, `MD_DATA_DIR`,
-  `MD_ALLOWED_ORIGINS`).
+  `MD_ALLOWED_ORIGINS`) e, em outro terminal, `npm --prefix web start` (o proxy leva `/api` para a porta 47823).
 
 ## Arquitetura do backend
 
@@ -101,8 +102,9 @@ usuário e é usado pelo navegador). Enquanto a migração não termina, os dois
 - Binários: `yt-dlp` e `ffmpeg` standalone são baixados em `functions/bin` durante o build na nuvem.
   Localmente, instale com `brew install yt-dlp ffmpeg` (ou defina `YT_DLP_PATH` / `FFMPEG_PATH`).
 - Domínio puro (matcher, pipeline, casos de uso) **não** importa SDKs: dependências entram por portas.
-- No frontend, componentes dependem apenas de `AuthGateway`/`JobsGateway` (classes abstratas); o
-  Firebase fica em `core/firebase.ts` e `*/firebase-*.gateway.ts`. Nos testes, use `testing/fakes.ts`.
+- No frontend, componentes dependem apenas de `JobsGateway`/`SettingsGateway`/`ToolsGateway` (classes
+  abstratas); a API local fica em `*/http-*.gateway.ts` e `core/server-events.ts`. Não há login: o app
+  local é de um único usuário. Nos testes, use `testing/fakes.ts` e `testing/fake-server-events.ts`.
 
 ## Projeto Firebase compartilhado — isolamento OBRIGATÓRIO
 
