@@ -3,19 +3,23 @@
     <div class="mx-auto flex max-w-4xl items-center gap-3 px-4 py-4">
       <span class="inline-block h-3 w-3 rounded-full bg-emerald-500" aria-hidden="true"></span>
       <h1 class="text-lg font-semibold tracking-tight">Music Downloader</h1>
-      @if (auth.user(); as user) {
-        <div class="ml-auto flex items-center gap-3 text-sm">
-          <span class="hidden text-zinc-400 sm:inline">{{ user.displayName }}</span>
-          <button
-            type="button"
-            data-testid="sign-out"
-            class="text-zinc-400 hover:text-zinc-100"
-            (click)="auth.signOut()"
-          >
-            Sair
-          </button>
-        </div>
-      }
+      <nav class="ml-auto flex items-center gap-4 text-sm">
+        <a
+          routerLink="/"
+          routerLinkActive="text-zinc-100"
+          [routerLinkActiveOptions]="{ exact: true }"
+          class="text-zinc-400 hover:text-zinc-100"
+        >
+          Início
+        </a>
+        <a
+          routerLink="/configuracoes"
+          routerLinkActive="text-zinc-100"
+          class="text-zinc-400 hover:text-zinc-100"
+        >
+          Configurações
+        </a>
+      </nav>
     </div>
   </header>
 
