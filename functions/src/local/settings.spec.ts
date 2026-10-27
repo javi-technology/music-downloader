@@ -63,6 +63,7 @@ describe("SettingsStore", () => {
   it("começa com a pasta padrão e sem Spotify configurado", () => {
     expect(store().publicView()).toEqual({
       spotifyConfigured: false,
+      spotifyBuiltIn: false,
       downloadDir: "/music",
     });
   });
@@ -87,6 +88,7 @@ describe("SettingsStore", () => {
 
     expect(settings.publicView()).toEqual({
       spotifyConfigured: true,
+      spotifyBuiltIn: false,
       spotifyClientId: "id",
       downloadDir: "/music",
     });
@@ -114,5 +116,64 @@ describe("SettingsStore", () => {
     );
     if (process.platform !== "win32")
       expect((await stat(file)).mode & 0o777).toBe(0o600);
+  });
+
+  describe("credenciais embutidas no executável", () => {
+    const builtIn = { clientId: "id-app", clientSecret: "secret-app" };
+    const storeWithBuiltIn = () =>
+      new SettingsStore(file, { downloadDir: "/music" }, builtIn);
+
+    it("sem credenciais embutidas nem do usuário, não há credenciais", () => {
+      expect(store().spotifyCredentials()).toBeUndefined();
+    });
+
+    it("usa as embutidas quando o usuário não informou as próprias", () => {
+      expect(storeWithBuiltIn().spotifyCredentials()).toEqual(builtIn);
+    });
+
+    it("as credenciais do usuário têm prioridade sobre as embutidas", () => {
+      const settings = storeWithBuiltIn();
+      settings.update({ spotifyClientId: "id", spotifyClientSecret: "secret" });
+
+      expect(settings.spotifyCredentials()).toEqual({
+        clientId: "id",
+        clientSecret: "secret",
+      });
+    });
+
+    it("credenciais do usuário incompletas não substituem as embutidas", () => {
+      const settings = storeWithBuiltIn();
+      settings.update({ spotifyClientId: "id" });
+
+      expect(settings.spotifyCredentials()).toEqual(builtIn);
+    });
+
+    it("ignora credenciais embutidas vazias (build sem os secrets)", () => {
+      const settings = new SettingsStore(
+        file,
+        { downloadDir: "/music" },
+        { clientId: "", clientSecret: "" },
+      );
+
+      expect(settings.spotifyCredentials()).toBeUndefined();
+      expect(settings.publicView().spotifyBuiltIn).toBe(false);
+    });
+
+    it("a visão pública indica as embutidas sem expor nenhum dado delas", () => {
+      const view = storeWithBuiltIn().publicView();
+
+      expect(view).toEqual({
+        spotifyConfigured: true,
+        spotifyBuiltIn: true,
+        downloadDir: "/music",
+      });
+      expect(JSON.stringify(view)).not.toMatch(/id-app|secret-app/);
+    });
+
+    it("nunca grava as embutidas no arquivo de configurações", async () => {
+      storeWithBuiltIn().update({ downloadDir: "/outra" });
+
+      expect(await readFile(file, "utf8")).not.toMatch(/id-app|secret-app/);
+    });
   });
 });
