@@ -23,7 +23,7 @@ import {
   createLocalServer,
 } from "./http-server.js";
 import { LocalFileStorage } from "./local-file-storage.js";
-import { SettingsStore } from "./settings.js";
+import { SettingsStore, type SpotifyCredentials } from "./settings.js";
 import { SqliteJobRepository } from "./sqlite-job-repository.js";
 import { TrackQueue, jobFolder } from "./track-queue.js";
 import { type ToolSpec, toolCatalog } from "./tools/catalog.js";
@@ -39,12 +39,11 @@ export interface LocalAppOptions {
   defaultDownloadDir: string;
   port: number;
   allowedOrigins?: string[];
+  /** Credenciais do Spotify embutidas no executável (as do usuário têm prioridade). */
+  builtInSpotify?: SpotifyCredentials;
   /** Substituíveis em testes: fonte das faixas e processamento de uma faixa. */
   tools?: LocalTools;
-  songSource?: (credentials: {
-    clientId: string;
-    clientSecret: string;
-  }) => SongSource;
+  songSource?: (credentials: SpotifyCredentials) => SongSource;
   processSong?: (
     song: Song,
     destinationDir: string,
@@ -70,9 +69,11 @@ export async function startLocalApp(
   options: LocalAppOptions,
 ): Promise<LocalApp> {
   mkdirSync(options.dataDir, { recursive: true });
-  const settings = new SettingsStore(join(options.dataDir, "settings.json"), {
-    downloadDir: options.defaultDownloadDir,
-  });
+  const settings = new SettingsStore(
+    join(options.dataDir, "settings.json"),
+    { downloadDir: options.defaultDownloadDir },
+    options.builtInSpotify,
+  );
   const feed = new ChangeFeed();
   const db = new DatabaseSync(join(options.dataDir, "music-downloader.db"));
   const repository = new SqliteJobRepository(db, {
@@ -114,19 +115,12 @@ export async function startLocalApp(
     allowedOrigins: options.allowedOrigins,
     createJob: async (url) => {
       if (!tools.status().ready) throw new ToolsNotReadyError();
-      const { spotifyClientId, spotifyClientSecret } = settings.get();
-      if (!spotifyClientId || !spotifyClientSecret)
-        throw new SpotifyNotConfiguredError();
+      const credentials = settings.spotifyCredentials();
+      if (!credentials) throw new SpotifyNotConfiguredError();
 
       const created = await createDownloadJob(
         { ownerUid: LOCAL_OWNER, url },
-        {
-          songs: songSource({
-            clientId: spotifyClientId,
-            clientSecret: spotifyClientSecret,
-          }),
-          repository,
-        },
+        { songs: songSource(credentials), repository },
       );
       queue.notify();
       return created;
