@@ -108,6 +108,9 @@ async function handle(
     return sendWebAsset(res, method, segments, deps.web);
   const route = segments.slice(1);
 
+  if (route[0] === "health" && route.length === 1 && method === "GET")
+    return sendJson(res, 200, { app: "music-downloader" });
+
   if (route[0] === "settings" && route.length === 1) {
     if (method === "GET") return sendJson(res, 200, deps.settings.publicView());
     if (method === "PUT") {
