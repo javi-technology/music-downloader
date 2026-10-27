@@ -47,6 +47,12 @@ describe("directoryAssets", () => {
     expect(assets.get("media")).toBeUndefined();
   });
 
+  it("aceita arquivos cujo nome começa com dois pontos", async () => {
+    await writeFile(join(root, "..fonte.woff2"), "f");
+
+    expect(directoryAssets(root).get("..fonte.woff2")?.toString()).toBe("f");
+  });
+
   it("não sai da pasta (path traversal)", () => {
     const assets = directoryAssets(join(root, "media"));
 
