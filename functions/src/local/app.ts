@@ -29,6 +29,7 @@ import { TrackQueue, jobFolder } from "./track-queue.js";
 import { type ToolSpec, toolCatalog } from "./tools/catalog.js";
 import { extractTarXz } from "./tools/tar.js";
 import { type ToolPaths, ToolManager } from "./tools/tool-manager.js";
+import type { WebAssets } from "./web-assets.js";
 
 /** O app local é de um único usuário: não há login. */
 const LOCAL_OWNER = "local";
@@ -39,6 +40,8 @@ export interface LocalAppOptions {
   defaultDownloadDir: string;
   port: number;
   allowedOrigins?: string[];
+  /** Build do Angular servido na raiz (no executável, embutido; em desenvolvimento, o `ng serve`). */
+  web?: WebAssets;
   /** Credenciais do Spotify embutidas no executável (as do usuário têm prioridade). */
   builtInSpotify?: SpotifyCredentials;
   /** Substituíveis em testes: fonte das faixas e processamento de uma faixa. */
@@ -113,6 +116,7 @@ export async function startLocalApp(
     repository,
     feed,
     allowedOrigins: options.allowedOrigins,
+    web: options.web,
     createJob: async (url) => {
       if (!tools.status().ready) throw new ToolsNotReadyError();
       const credentials = settings.spotifyCredentials();
