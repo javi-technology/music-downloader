@@ -104,11 +104,14 @@ export async function startLocalApp(
       ),
     onError: (error, track) =>
       console.error(`Falha na faixa ${track.jobId}/${track.trackId}:`, error),
+    canProcess: () => tools.status().ready,
   });
+  // Ao fim de cada instalação (inicial ou pelo "Tentar de novo"), retoma as faixas pendentes.
+  const installTools = () => tools.install().finally(() => queue.notify());
 
   const server = createLocalServer({
     settings,
-    tools,
+    tools: { status: () => tools.status(), install: installTools },
     repository,
     feed,
     allowedOrigins: options.allowedOrigins,
@@ -141,7 +144,7 @@ export async function startLocalApp(
   // Em segundo plano: o progresso chega ao navegador pelo evento SSE `tools`.
   const logToolError = (error: unknown) =>
     console.error("Falha ao preparar as ferramentas:", error);
-  tools.install().catch(logToolError);
+  installTools().catch(logToolError);
   tools.updateYtDlpIfStale(YT_DLP_MAX_AGE_MS).catch(logToolError);
 
   const { port } = server.address() as AddressInfo;
