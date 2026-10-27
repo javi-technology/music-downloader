@@ -66,6 +66,19 @@ describe("startLocalApp", () => {
     });
   });
 
+  it("serve o site quando recebe o build do Angular", async () => {
+    app = await start({
+      web: {
+        get: (path) => (path === "index.html" ? Buffer.from("ok") : undefined),
+      },
+    });
+
+    const reply = await api("/");
+
+    expect(reply.status).toBe(200);
+    expect(await reply.text()).toBe("ok");
+  });
+
   it("ao iniciar, instala as ferramentas ausentes e atualiza o yt-dlp antigo", async () => {
     const tools = readyTools();
     app = await start({ tools });
