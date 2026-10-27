@@ -58,6 +58,7 @@ describe("servidor local", () => {
     status: Mock<() => ToolsStatus>;
     install: Mock<() => Promise<void>>;
   };
+  let webFiles: Map<string, string>;
   let createJob: Mock<
     (url: string) => Promise<{ jobId: string; totalTracks: number }>
   >;
@@ -77,6 +78,10 @@ describe("servidor local", () => {
       update: vi.fn(),
     };
     createJob = vi.fn();
+    webFiles = new Map([
+      ["index.html", "<app-root></app-root>"],
+      ["main-ABC.js", "console.log(1)"],
+    ]);
     tools = {
       status: vi.fn(() => ({ ready: false, installing: true, tools: [] })),
       install: vi.fn().mockResolvedValue(undefined),
@@ -88,6 +93,12 @@ describe("servidor local", () => {
       createJob,
       feed,
       allowedOrigins: ["http://localhost:4200"],
+      web: {
+        get: (path) => {
+          const content = webFiles.get(path);
+          return content === undefined ? undefined : Buffer.from(content);
+        },
+      },
     });
     await new Promise<void>((resolve) =>
       server.listen(0, "127.0.0.1", resolve),
@@ -186,6 +197,69 @@ describe("servidor local", () => {
         expect(reply.status).toBe(415);
       }
       expect(tools.install).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("site (build do Angular)", () => {
+    it("serve o index.html na raiz, sem cache", async () => {
+      const reply = await request("GET", "/");
+
+      expect(reply.status).toBe(200);
+      expect(reply.body).toBe("<app-root></app-root>");
+      expect(reply.headers["content-type"]).toBe("text/html; charset=utf-8");
+      expect(reply.headers["cache-control"]).toBe("no-cache");
+    });
+
+    it("serve os arquivos do build com o tipo certo e cache longo", async () => {
+      const reply = await request("GET", "/main-ABC.js");
+
+      expect(reply.status).toBe(200);
+      expect(reply.body).toBe("console.log(1)");
+      expect(reply.headers["content-type"]).toBe(
+        "text/javascript; charset=utf-8",
+      );
+      expect(reply.headers["cache-control"]).toMatch(/immutable/);
+    });
+
+    it("rotas do app (sem extensão) recebem o index.html", async () => {
+      const reply = await request("GET", "/configuracoes?x=1");
+
+      expect(reply.status).toBe(200);
+      expect(reply.body).toBe("<app-root></app-root>");
+    });
+
+    it("arquivo inexistente responde 404", async () => {
+      expect((await request("GET", "/nada.js")).status).toBe(404);
+    });
+
+    it("protege contra clickjacking e MIME sniffing", async () => {
+      const reply = await request("GET", "/");
+
+      expect(reply.headers["x-frame-options"]).toBe("DENY");
+      expect(reply.headers["x-content-type-options"]).toBe("nosniff");
+    });
+
+    it("o site também exige Host local (DNS rebinding)", async () => {
+      const reply = await request("GET", "/", {
+        headers: { host: `evil.example:${port}` },
+      });
+
+      expect(reply.status).toBe(403);
+    });
+
+    it("só aceita GET e HEAD fora da API", async () => {
+      const reply = await request("POST", "/", {
+        headers: { "content-type": "application/json" },
+      });
+
+      expect(reply.status).toBe(405);
+    });
+
+    it("rotas desconhecidas da API continuam 404 em JSON", async () => {
+      const reply = await request("GET", "/api/outra");
+
+      expect(reply.status).toBe(404);
+      expect(reply.headers["content-type"]).toMatch(/json/);
     });
   });
 
