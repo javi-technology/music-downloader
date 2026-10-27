@@ -61,6 +61,7 @@ describe("startLocalApp", () => {
     expect(app.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
     expect(await (await api("/api/settings")).json()).toEqual({
       spotifyConfigured: false,
+      spotifyBuiltIn: false,
       downloadDir: join(dir, "Music"),
     });
   });
@@ -132,6 +133,30 @@ describe("startLocalApp", () => {
       status: string;
     }[];
     expect(tracks[0]).toMatchObject({ status: "done" });
+  });
+
+  it("cria o job com as credenciais embutidas quando o usuário não informou as próprias", async () => {
+    const getCollection = vi
+      .fn()
+      .mockResolvedValue({ title: "After Hours", songs: [song] });
+    const songSource = vi.fn(() => ({ getCollection }));
+    app = await start({
+      songSource,
+      processSong: vi.fn().mockResolvedValue({
+        storagePath: "x.mp3",
+        videoId: "v",
+        score: 99,
+      }),
+      builtInSpotify: { clientId: "id-app", clientSecret: "secret-app" },
+    });
+
+    const reply = await postJob("https://open.spotify.com/album/x");
+
+    expect(reply.status).toBe(201);
+    expect(songSource).toHaveBeenCalledWith({
+      clientId: "id-app",
+      clientSecret: "secret-app",
+    });
   });
 
   it("guarda jobs e configurações na pasta de dados entre execuções", async () => {
