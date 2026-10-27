@@ -1,0 +1,112 @@
+name: Executáveis
+
+on:
+  pull_request:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+      - run: npm ci
+        working-directory: functions
+      - run: npm ci
+        working-directory: web
+      - run: npm run typecheck
+        working-directory: functions
+      - run: npm test
+        working-directory: functions
+      - run: npm test -- --watch=false
+        working-directory: web
+
+  build:
+    name: Executável (${{ matrix.name }})
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: macos-arm64, os: macos-latest }
+          - { name: macos-x64, os: macos-15-intel }
+          - { name: windows-x64, os: windows-latest }
+          - { name: linux-x64, os: ubuntu-latest }
+          - { name: linux-arm64, os: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.os }}
+    env:
+      # Credenciais embutidas só no release: artefatos de PR de um repositório público são baixáveis.
+      MUSIC_DOWNLOADER_SPOTIFY_CLIENT_ID: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.MUSIC_DOWNLOADER_SPOTIFY_CLIENT_ID || '' }}
+      MUSIC_DOWNLOADER_SPOTIFY_CLIENT_SECRET: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.MUSIC_DOWNLOADER_SPOTIFY_CLIENT_SECRET || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+      - run: npm ci
+        working-directory: functions
+      - run: npm ci
+        working-directory: web
+      - run: npm run build:executable
+        working-directory: functions
+
+      - name: Teste de fumaça (sobe, serve o site e a API)
+        shell: bash
+        working-directory: functions/dist-exe
+        run: |
+          exe=$(ls music-downloader-*)
+          data=$(mktemp -d)
+          MD_DATA_DIR="$data" MD_PORT=47823 MD_NO_BROWSER=1 "./$exe" > smoke.log 2>&1 &
+          pid=$!
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:47823/api/health && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:47823/ | grep -q "<app-root" || { cat smoke.log; exit 1; }
+          settings=$(curl -sf http://127.0.0.1:47823/api/settings)
+          echo "$settings"
+          if [ -n "$MUSIC_DOWNLOADER_SPOTIFY_CLIENT_ID" ]; then
+            echo "$settings" | grep -q '"spotifyBuiltIn":true' || { echo "Credenciais não embutidas"; exit 1; }
+          fi
+          kill $pid || true
+          rm smoke.log
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: functions/dist-exe/music-downloader-*
+          if-no-files-found: error
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: executaveis
+          merge-multiple: true
+      - name: Publica os executáveis no release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # Navegadores não preservam a permissão de execução; o zip preserva (macOS e Linux).
+        run: |
+          cd executaveis
+          for exe in music-downloader-macos-* music-downloader-linux-*; do
+            chmod +x "$exe"
+            zip -j "$exe.zip" "$exe"
+            rm "$exe"
+          done
+          gh release create "$GITHUB_REF_NAME" ./* \
+            --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes

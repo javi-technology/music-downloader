@@ -92,7 +92,8 @@ export const mdProcessTrack = onDocumentCreated(
           jobId,
           trackId,
           song: data.song,
-          destinationDir: storagePath("users", data.ownerUid, jobId),
+          // Pasta por faixa: faixas homônimas do mesmo job não sobrescrevem o mesmo arquivo.
+          destinationDir: storagePath("users", data.ownerUid, jobId, trackId),
         },
         {
           repository,

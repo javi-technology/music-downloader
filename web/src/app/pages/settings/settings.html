@@ -1,0 +1,110 @@
+<section class="space-y-8">
+  <header>
+    <h2 class="text-xl font-semibold">Configurações</h2>
+    <p class="text-sm text-zinc-400">Ficam salvas só neste computador.</p>
+  </header>
+
+  <form class="space-y-6" (submit)="save($event)">
+    <fieldset class="space-y-4 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+      <legend class="px-1 text-sm font-semibold">Spotify</legend>
+
+      @if (settings()?.spotifyBuiltIn) {
+        <p class="text-sm text-zinc-400">
+          O app já vem com credenciais do Spotify. Preencha só se quiser usar as suas.
+        </p>
+      }
+
+      <details class="text-sm text-zinc-300" [open]="settings()?.spotifyConfigured === false">
+        <summary class="cursor-pointer text-emerald-400">
+          Como conseguir o Client ID e o Secret
+        </summary>
+        <ol class="mt-2 list-decimal space-y-1 pl-5 text-zinc-400">
+          <li>
+            Entre no
+            <a
+              href="https://developer.spotify.com/dashboard"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-block text-emerald-400 underline"
+            >
+              painel de desenvolvedor do Spotify
+            </a>
+            com a sua conta (gratuita serve).
+          </li>
+          <li>
+            Clique em <strong>Create app</strong>, dê um nome qualquer e marque
+            <strong>Web API</strong>.
+          </li>
+          <li>
+            Em <strong>Redirect URI</strong>, informe
+            <span class="font-mono">http://127.0.0.1</span>
+            (o app não usa, mas o Spotify exige).
+          </li>
+          <li>
+            Abra o app criado, vá em <strong>Settings</strong> e copie o Client ID e o Client
+            Secret.
+          </li>
+        </ol>
+      </details>
+
+      <div class="space-y-1">
+        <label for="clientId" class="block text-sm text-zinc-300">Client ID</label>
+        <input
+          id="clientId"
+          name="clientId"
+          autocomplete="off"
+          class="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 font-mono text-sm focus:border-emerald-500 focus:outline-none"
+          [value]="clientId()"
+          (input)="clientId.set($any($event.target).value)"
+        />
+      </div>
+
+      <div class="space-y-1">
+        <label for="clientSecret" class="block text-sm text-zinc-300">Client Secret</label>
+        <input
+          id="clientSecret"
+          name="clientSecret"
+          type="password"
+          autocomplete="off"
+          class="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 font-mono text-sm placeholder:text-zinc-500 focus:border-emerald-500 focus:outline-none"
+          [placeholder]="
+            settings()?.spotifyClientId ? '•••••••• (salvo; deixe vazio para manter)' : ''
+          "
+          [value]="clientSecret()"
+          (input)="clientSecret.set($any($event.target).value)"
+        />
+      </div>
+    </fieldset>
+
+    <fieldset class="space-y-1 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+      <legend class="px-1 text-sm font-semibold">Pasta das músicas</legend>
+      <label for="downloadDir" class="block text-sm text-zinc-300">
+        Caminho completo (álbuns e playlists ganham uma subpasta)
+      </label>
+      <input
+        id="downloadDir"
+        name="downloadDir"
+        autocomplete="off"
+        class="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 font-mono text-sm focus:border-emerald-500 focus:outline-none"
+        [value]="downloadDir()"
+        (input)="downloadDir.set($any($event.target).value)"
+      />
+    </fieldset>
+
+    <div class="flex items-center gap-4">
+      <button
+        type="submit"
+        class="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-emerald-400 disabled:opacity-50"
+        [disabled]="saving()"
+      >
+        {{ saving() ? 'Salvando…' : 'Salvar' }}
+      </button>
+      @if (error(); as message) {
+        <p role="alert" class="text-sm text-red-400">{{ message }}</p>
+      }
+      @if (success(); as message) {
+        <p role="status" class="text-sm text-emerald-400">{{ message }}</p>
+      }
+    </div>
+  </form>
+</section>

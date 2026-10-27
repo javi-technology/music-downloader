@@ -38,8 +38,7 @@ export class JobCard {
   );
   protected readonly statusLabels = STATUS_LABELS;
 
-  protected async download(track: JobTrack): Promise<void> {
-    if (!track.storagePath) return;
-    window.open(await this.gateway.getDownloadUrl(track.storagePath), '_blank');
+  protected downloadUrl(track: JobTrack): string {
+    return this.gateway.downloadUrl(this.job().id, track.id);
   }
 }

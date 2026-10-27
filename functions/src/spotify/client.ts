@@ -1,4 +1,5 @@
 import type { Song } from "../domain/types.js";
+import type { SongCollection } from "../jobs/types.js";
 import type { SpotifyResource } from "./url.js";
 
 const API = "https://api.spotify.com/v1";
@@ -42,25 +43,40 @@ export class SpotifyClient {
     this.fetch = options.fetch ?? globalThis.fetch;
   }
 
-  async getSongs(resource: SpotifyResource): Promise<Song[]> {
+  /** Faixas da fonte e, para álbum/playlist, o nome usado como pasta de destino. */
+  async getCollection(resource: SpotifyResource): Promise<SongCollection> {
     switch (resource.type) {
       case "track":
-        return [
-          toSong(await this.get<SpotifyTrack>(`${API}/tracks/${resource.id}`)),
-        ];
+        return {
+          songs: [
+            toSong(
+              await this.get<SpotifyTrack>(`${API}/tracks/${resource.id}`),
+            ),
+          ],
+        };
       case "album":
-        return this.getAlbumSongs(resource.id);
-      case "playlist":
-        return this.getPlaylistSongs(resource.id);
+        return this.getAlbum(resource.id);
+      case "playlist": {
+        const [playlist, songs] = await Promise.all([
+          this.get<{ name: string }>(
+            `${API}/playlists/${resource.id}?fields=name`,
+          ),
+          this.getPlaylistSongs(resource.id),
+        ]);
+        return { title: playlist.name, songs };
+      }
     }
   }
 
-  private async getAlbumSongs(id: string): Promise<Song[]> {
+  private async getAlbum(id: string): Promise<SongCollection> {
     const album = await this.get<SpotifyAlbum & { tracks: Page<SpotifyTrack> }>(
       `${API}/albums/${id}`,
     );
     const tracks = await this.collect(album.tracks);
-    return tracks.map((track) => toSong({ ...track, album }));
+    return {
+      title: album.name,
+      songs: tracks.map((track) => toSong({ ...track, album })),
+    };
   }
 
   private async getPlaylistSongs(id: string): Promise<Song[]> {

@@ -25,11 +25,11 @@ describe("integração mapper do Spotify → FirestoreJobRepository (SDK real)",
             duration_ms: 1000,
           }),
     );
-    const songs = await new SpotifyClient({
+    const { songs } = await new SpotifyClient({
       clientId: "i",
       clientSecret: "s",
       fetch: fetchMock as typeof fetch,
-    }).getSongs({
+    }).getCollection({
       type: "track",
       id: "a",
     });

@@ -30,6 +30,19 @@ describe('JobCard', () => {
     ).toBe('50');
   });
 
+  it('mostra o nome do álbum/playlist quando existe, senão o link', async () => {
+    const titled = await render(makeJob({ title: 'After Hours' }));
+    expect((titled.nativeElement as HTMLElement).querySelector('header')!.textContent).toContain(
+      'After Hours',
+    );
+    TestBed.resetTestingModule();
+
+    const untitled = await render(makeJob({ title: undefined }));
+    expect((untitled.nativeElement as HTMLElement).querySelector('header')!.textContent).toContain(
+      'https://open.spotify.com/album/x',
+    );
+  });
+
   it('lista as faixas do job com status', async () => {
     const fixture = await render();
     expect(gateway.watchTracks).toHaveBeenCalledWith('j1');
@@ -52,19 +65,17 @@ describe('JobCard', () => {
     expect(items[0].textContent).toContain('Concluída');
     expect(items[1].textContent).toContain('Falhou');
     expect(items[1].textContent).toContain('Nenhuma correspondência');
-    expect(items[1].querySelector('button')).toBeNull();
+    expect(items[1].querySelector('a')).toBeNull();
   });
 
-  it('abre o link de download da faixa concluída', async () => {
-    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+  it('oferece o link direto do MP3 da faixa concluída', async () => {
     const fixture = await render();
     gateway.tracks$.next([makeTrack()]);
     await fixture.whenStable();
 
-    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('li button')!.click();
-    await fixture.whenStable();
-
-    expect(gateway.getDownloadUrl).toHaveBeenCalledWith(makeTrack().storagePath);
-    expect(open).toHaveBeenCalledWith(`https://storage/${makeTrack().storagePath}`, '_blank');
+    const link = (fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('li a')!;
+    expect(link.getAttribute('href')).toBe('/api/jobs/j1/tracks/000/file');
+    expect(link.hasAttribute('download')).toBe(true);
+    expect(link.title).toContain(makeTrack().storagePath);
   });
 });

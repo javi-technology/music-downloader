@@ -1,56 +1,103 @@
-@if (auth.user(); as user) {
-  <section class="space-y-8">
-    <form class="space-y-2" (submit)="submit($event)">
-      <label for="url" class="block text-sm font-medium text-zinc-300">Link do Spotify</label>
-      <div class="flex flex-col gap-2 sm:flex-row">
-        <input
-          id="url"
-          name="url"
-          type="url"
-          autocomplete="off"
-          placeholder="https://open.spotify.com/album/..."
-          class="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm placeholder:text-zinc-500 focus:border-emerald-500 focus:outline-none"
-          [value]="url()"
-          (input)="url.set($any($event.target).value)"
-        />
-        <button
-          type="submit"
-          class="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
-          [disabled]="!urlValid() || submitting()"
-        >
-          {{ submitting() ? 'Enviando…' : 'Baixar' }}
-        </button>
-      </div>
-      @if (showUrlHint()) {
-        <p class="text-xs text-amber-400">Cole um link de faixa, álbum ou playlist do Spotify.</p>
-      }
-      @if (error(); as message) {
-        <p role="alert" class="text-sm text-red-400">{{ message }}</p>
-      }
-      @if (success(); as message) {
-        <p role="status" class="text-sm text-emerald-400">{{ message }}</p>
-      }
-    </form>
+<section class="space-y-8">
+  @if (tools(); as status) {
+    @if (toolsPending()) {
+      <section
+        data-testid="tools"
+        class="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4"
+        aria-live="polite"
+      >
+        <div>
+          <h2 class="text-sm font-semibold">Preparando as ferramentas de download</h2>
+          <p class="text-xs text-zinc-400">
+            Só na primeira vez: o app baixa o yt-dlp, o ffmpeg e o deno para este computador.
+          </p>
+        </div>
+        <ul class="space-y-1 text-sm">
+          @for (tool of status.tools; track tool.name) {
+            <li class="flex justify-between gap-4">
+              <span class="font-mono">{{ tool.name }}</span>
+              <span
+                [class.text-red-400]="tool.state === 'error'"
+                [class.text-emerald-400]="tool.state === 'installed'"
+                [class.text-zinc-400]="tool.state === 'downloading' || tool.state === 'missing'"
+              >
+                {{ toolProgress(tool) }}
+              </span>
+            </li>
+          }
+        </ul>
+        @if (!status.installing) {
+          <button
+            type="button"
+            data-testid="retry-tools"
+            class="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs hover:border-zinc-500"
+            (click)="retryTools()"
+          >
+            Tentar de novo
+          </button>
+        }
+      </section>
+    }
+  }
 
-    <section class="space-y-3">
-      <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">Seus downloads</h2>
-      @for (job of jobs(); track job.id) {
-        <app-job-card [job]="job" />
-      } @empty {
-        <p class="text-sm text-zinc-500">Nenhum download ainda.</p>
-      }
-    </section>
-  </section>
-} @else {
-  <section class="flex flex-col items-center gap-4 py-16 text-center">
-    <p class="text-zinc-400">Entre para baixar músicas a partir de links do Spotify.</p>
-    <button
-      type="button"
-      data-testid="sign-in"
-      class="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-emerald-400"
-      (click)="auth.signIn()"
+  @if (spotifyPending()) {
+    <section
+      data-testid="spotify-setup"
+      class="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm"
     >
-      Entrar com Google
-    </button>
+      <p class="font-semibold text-amber-300">Configure suas credenciais do Spotify</p>
+      <p class="mt-1 text-zinc-300">
+        O app usa a API do Spotify para ler faixas, álbuns e playlists.
+        <a routerLink="/configuracoes" class="text-emerald-400 underline hover:text-emerald-300">
+          Abrir configurações
+        </a>
+      </p>
+    </section>
+  }
+
+  <form class="space-y-2" (submit)="submit($event)">
+    <label for="url" class="block text-sm font-medium text-zinc-300">Link do Spotify</label>
+    <div class="flex flex-col gap-2 sm:flex-row">
+      <input
+        id="url"
+        name="url"
+        type="url"
+        autocomplete="off"
+        placeholder="https://open.spotify.com/album/..."
+        class="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm placeholder:text-zinc-500 focus:border-emerald-500 focus:outline-none"
+        [value]="url()"
+        (input)="url.set($any($event.target).value)"
+      />
+      <button
+        type="submit"
+        class="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+        [disabled]="!canSubmit()"
+      >
+        {{ submitting() ? 'Enviando…' : 'Baixar' }}
+      </button>
+    </div>
+    @if (showUrlHint()) {
+      <p class="text-xs text-amber-400">Cole um link de faixa, álbum ou playlist do Spotify.</p>
+    }
+    @if (settings(); as current) {
+      <p class="text-xs text-zinc-500">
+        As músicas são salvas em <span class="font-mono">{{ current.downloadDir }}</span>
+      </p>
+    }
+    @if (error(); as message) {
+      <p role="alert" class="text-sm text-red-400">{{ message }}</p>
+    }
+    @if (success(); as message) {
+      <p role="status" class="text-sm text-emerald-400">{{ message }}</p>
+    }
+  </form>
+
+  <section class="space-y-3">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">Seus downloads</h2>
+    @for (job of jobs(); track job.id) {
+      <app-job-card [job]="job" />
+    } @empty {
+      <p class="text-sm text-zinc-500">Nenhum download ainda.</p>
+    }
   </section>
-}
+</section>
