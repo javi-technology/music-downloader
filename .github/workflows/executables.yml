@@ -3,11 +3,15 @@ name: Executáveis
 on:
   pull_request:
   push:
-    tags: ["v*"]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: executaveis-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
@@ -43,9 +47,9 @@ jobs:
           - { name: linux-arm64, os: ubuntu-24.04-arm }
     runs-on: ${{ matrix.os }}
     env:
-      # Credenciais embutidas só no release: artefatos de PR de um repositório público são baixáveis.
-      MUSIC_DOWNLOADER_SPOTIFY_CLIENT_ID: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.MUSIC_DOWNLOADER_SPOTIFY_CLIENT_ID || '' }}
-      MUSIC_DOWNLOADER_SPOTIFY_CLIENT_SECRET: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.MUSIC_DOWNLOADER_SPOTIFY_CLIENT_SECRET || '' }}
+      # Credenciais embutidas só no release (push na main): artefatos de PR de um repositório público são baixáveis.
+      MUSIC_DOWNLOADER_SPOTIFY_CLIENT_ID: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && secrets.MUSIC_DOWNLOADER_SPOTIFY_CLIENT_ID || '' }}
+      MUSIC_DOWNLOADER_SPOTIFY_CLIENT_SECRET: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && secrets.MUSIC_DOWNLOADER_SPOTIFY_CLIENT_SECRET || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -87,7 +91,7 @@ jobs:
 
   release:
     name: Release
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -108,5 +112,7 @@ jobs:
             zip -j "$exe.zip" "$exe"
             rm "$exe"
           done
-          gh release create "$GITHUB_REF_NAME" ./* \
-            --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
+          # Cada push na main gera um release com tag própria, criada no commit do push.
+          tag="v$(date -u +%Y.%m.%d)-$GITHUB_RUN_NUMBER"
+          gh release create "$tag" ./* --target "$GITHUB_SHA" \
+            --repo "$GITHUB_REPOSITORY" --title "$tag" --generate-notes

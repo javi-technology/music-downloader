@@ -96,7 +96,7 @@ usuário e é usado pelo navegador). Enquanto a migração não termina, os dois
   (`web-assets.ts`); `main.ts` não pode ter top-level await (o bundle é CommonJS). Ao abrir, o app sobe na
   porta 47823 e abre o navegador; se já houver uma instância (`GET /api/health`), só abre o navegador.
 - Release: o workflow `.github/workflows/executables.yml` testa e gera os executáveis (macOS arm64/x64,
-  Windows x64, Linux x64/arm64) em todo PR e, numa tag `v*`, publica no release **com** as credenciais
+  Windows x64, Linux x64/arm64) em todo PR e, a cada push na `main`, publica um release (tag `vAAAA.MM.DD-<execução>`) **com** as credenciais
   embutidas (em PR, sem: artefatos de PR de repositório público são baixáveis). Os binários não são assinados:
   no macOS, o usuário libera em Ajustes > Privacidade e Segurança > "Abrir Mesmo Assim".
 
