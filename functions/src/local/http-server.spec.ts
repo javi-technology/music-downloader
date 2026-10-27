@@ -263,6 +263,15 @@ describe("servidor local", () => {
     });
   });
 
+  describe("GET /api/health", () => {
+    it("identifica o app (detecção de instância já aberta)", async () => {
+      const reply = await request("GET", "/api/health");
+
+      expect(reply.status).toBe(200);
+      expect(json(reply)).toEqual({ app: "music-downloader" });
+    });
+  });
+
   describe("/api/settings", () => {
     it("GET devolve a visão pública", async () => {
       const reply = await request("GET", "/api/settings");
