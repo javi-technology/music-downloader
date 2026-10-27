@@ -45,10 +45,13 @@ describe("seaConfig", () => {
       main: "main.cjs",
       output: "music-downloader.exe",
       webDir: "C:\\web",
-      webFiles: ["media\\logo.svg"],
+      webFiles: ["index.html", "media\\logo.svg"],
     });
 
-    expect(Object.keys(config.assets)).toEqual(["web/media/logo.svg"]);
+    expect(Object.keys(config.assets)).toEqual([
+      "web/index.html",
+      "web/media/logo.svg",
+    ]);
   });
 
   it("exige o index.html (build do Angular ausente)", () => {
