@@ -66,9 +66,9 @@ describe("LocalFileStorage", () => {
   it("aceita álbuns e músicas cujo nome começa com dois pontos", async () => {
     expect(
       await storage().upload(source, "...And Justice for All/Blackened.mp3"),
-    ).toBe(join(root, "...And Justice for All", "Blackened.mp3"));
+    ).toBe(join(root, "Music", "...And Justice for All", "Blackened.mp3"));
     expect(await storage().upload(source, "..Ponto.mp3")).toBe(
-      join(root, "..Ponto.mp3"),
+      join(root, "Music", "..Ponto.mp3"),
     );
   });
 });
