@@ -1,7 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, filter, firstValueFrom, map, merge, startWith, switchMap } from 'rxjs';
+import { Observable, filter, firstValueFrom, map, merge, startWith } from 'rxjs';
 import { apiError } from '../core/api-error';
+import { fetchOn } from '../core/fetch-on';
 import { ServerEvents } from '../core/server-events';
 import { ToolsGateway } from './tools.gateway';
 import { ToolsStatus } from './tools.model';
@@ -14,10 +15,12 @@ export class HttpToolsGateway extends ToolsGateway {
   watchStatus(): Observable<ToolsStatus> {
     const events = this.events.events();
     // Busca na entrada e a cada reconexão; no meio tempo o progresso chega pelo evento `tools`.
-    const fetched = events.pipe(
-      filter((event) => event.type === 'open'),
-      startWith(null),
-      switchMap(() => this.http.get<ToolsStatus>('/api/tools')),
+    const fetched = fetchOn(
+      events.pipe(
+        filter((event) => event.type === 'open'),
+        startWith(null),
+      ),
+      () => this.http.get<ToolsStatus>('/api/tools'),
     );
     const pushed = events.pipe(
       filter((event) => event.type === 'tools'),

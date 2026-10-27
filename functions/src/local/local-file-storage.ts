@@ -8,6 +8,7 @@ import {
   join,
   relative,
   resolve,
+  sep,
 } from "node:path";
 import type { FileStorage } from "../domain/ports.js";
 
@@ -20,7 +21,12 @@ export class LocalFileStorage implements FileStorage {
     const base = resolve(this.baseDir());
     const target = resolve(base, destination);
     const fromBase = relative(base, target);
-    if (fromBase.startsWith("..") || isAbsolute(fromBase))
+    // Só o segmento `..` sai da pasta; "...And Justice for All" é um nome válido.
+    const escapes =
+      fromBase === ".." ||
+      fromBase.startsWith(`..${sep}`) ||
+      isAbsolute(fromBase);
+    if (escapes)
       throw new Error(`Destino fora da pasta de músicas: "${destination}"`);
 
     await mkdir(dirname(target), { recursive: true });

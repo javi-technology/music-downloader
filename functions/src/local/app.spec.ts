@@ -1,9 +1,12 @@
+import { mkdirSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Song } from "../domain/types.js";
 import { type LocalApp, startLocalApp } from "./app.js";
+import { SqliteJobRepository } from "./sqlite-job-repository.js";
 
 const song: Song = {
   spotifyId: "s1",
@@ -169,6 +172,66 @@ describe("startLocalApp", () => {
     expect(songSource).toHaveBeenCalledWith({
       clientId: "id-app",
       clientSecret: "secret-app",
+    });
+  });
+
+  describe("faixas pendentes de uma execução anterior", () => {
+    beforeEach(async () => {
+      mkdirSync(join(dir, "data"), { recursive: true });
+      const db = new DatabaseSync(join(dir, "data", "music-downloader.db"));
+      await new SqliteJobRepository(db).createJob({
+        ownerUid: "local",
+        sourceUrl: "https://open.spotify.com/track/s1",
+        source: { type: "track", id: "s1" },
+        songs: [song],
+      });
+      db.close();
+    });
+
+    const notReady = { ready: false, installing: true, tools: [] };
+    const ready = { ready: true, installing: false, tools: [] };
+    const processed = () =>
+      vi
+        .fn()
+        .mockResolvedValue({ storagePath: "x.mp3", videoId: "v", score: 99 });
+
+    it("só são processadas depois que as ferramentas ficam prontas", async () => {
+      let finishInstall!: () => void;
+      const tools = readyTools();
+      tools.status.mockReturnValue(notReady);
+      tools.install.mockReturnValueOnce(
+        new Promise<void>((resolve) => (finishInstall = resolve)),
+      );
+      const processSong = processed();
+      app = await start({ tools, processSong });
+      await app.idle();
+
+      expect(processSong).not.toHaveBeenCalled();
+
+      tools.status.mockReturnValue(ready);
+      finishInstall();
+      await vi.waitFor(() => expect(processSong).toHaveBeenCalledOnce());
+      await app.idle();
+    });
+
+    it("são retomadas quando a reinstalação pelo botão termina", async () => {
+      const tools = readyTools();
+      tools.status.mockReturnValue(notReady);
+      tools.install.mockRejectedValueOnce(new Error("rede caiu"));
+      const processSong = processed();
+      app = await start({ tools, processSong });
+      await app.idle();
+
+      expect(processSong).not.toHaveBeenCalled();
+
+      tools.status.mockReturnValue(ready);
+      await api("/api/tools/install", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+      });
+
+      await vi.waitFor(() => expect(processSong).toHaveBeenCalledOnce());
+      await app.idle();
     });
   });
 

@@ -14,6 +14,8 @@ export class TrackQueue {
       repository: QueueRepository;
       process: (track: PendingTrack) => Promise<void>;
       onError?: (error: unknown, track: PendingTrack) => void;
+      /** Enquanto falso, as faixas ficam pendentes (ex.: ferramentas ainda sendo instaladas). */
+      canProcess?: () => boolean;
     },
   ) {}
 
@@ -36,11 +38,12 @@ export class TrackQueue {
   }
 
   private async drain(): Promise<void> {
+    const canProcess = this.deps.canProcess ?? (() => true);
     let failed: PendingTrack | undefined;
     for (
-      let track = this.deps.repository.nextPendingTrack();
+      let track = this.next(canProcess);
       track && !isSameTrack(track, failed);
-      track = this.deps.repository.nextPendingTrack()
+      track = this.next(canProcess)
     ) {
       failed = undefined;
       try {
@@ -52,6 +55,10 @@ export class TrackQueue {
         this.deps.onError?.(error, track);
       }
     }
+  }
+
+  private next(canProcess: () => boolean): PendingTrack | undefined {
+    return canProcess() ? this.deps.repository.nextPendingTrack() : undefined;
   }
 }
 

@@ -46,6 +46,23 @@ describe('HttpToolsGateway', () => {
     expect(received).toEqual([installing, ready, ready]);
   });
 
+  it('uma falha ao buscar o estado não encerra o acompanhamento', () => {
+    const received: ToolsStatus[] = [];
+    let failed = false;
+    gateway.watchStatus().subscribe({
+      next: (status) => received.push(status),
+      error: () => (failed = true),
+    });
+
+    http.expectOne('/api/tools').flush('falhou', { status: 500, statusText: 'Erro' });
+    events.emit({ type: 'tools', status: installing });
+    events.emit({ type: 'open' });
+    http.expectOne('/api/tools').flush(ready);
+
+    expect(failed).toBe(false);
+    expect(received).toEqual([installing, ready]);
+  });
+
   it('pede a instalação das ferramentas', async () => {
     const done = gateway.install();
 

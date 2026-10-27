@@ -1,7 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, filter, firstValueFrom, map, startWith, switchMap } from 'rxjs';
+import { Observable, filter, firstValueFrom, map, startWith } from 'rxjs';
 import { apiError } from '../core/api-error';
+import { fetchOn } from '../core/fetch-on';
 import { ServerEvent, ServerEvents } from '../core/server-events';
 import { DownloadJob, JobTrack, SourceType, TrackStatus } from './job.model';
 import { JobsGateway } from './jobs.gateway';
@@ -43,19 +44,19 @@ export class HttpJobsGateway extends JobsGateway {
   }
 
   watchJobs(): Observable<DownloadJob[]> {
-    return this.reloadOn((event) => event.type !== 'tools').pipe(
-      switchMap(() => this.http.get<JobRow[]>('/api/jobs')),
-      map((rows) => rows.map(toDownloadJob)),
-    );
+    return fetchOn(
+      this.reloadOn((event) => event.type !== 'tools'),
+      () => this.http.get<JobRow[]>('/api/jobs'),
+    ).pipe(map((rows) => rows.map(toDownloadJob)));
   }
 
   watchTracks(jobId: string): Observable<JobTrack[]> {
-    return this.reloadOn(
-      (event) => event.type === 'open' || (event.type === 'job' && event.jobId === jobId),
-    ).pipe(
-      switchMap(() => this.http.get<TrackRow[]>(`/api/jobs/${encodeURIComponent(jobId)}/tracks`)),
-      map((rows) => rows.map(toJobTrack)),
-    );
+    return fetchOn(
+      this.reloadOn(
+        (event) => event.type === 'open' || (event.type === 'job' && event.jobId === jobId),
+      ),
+      () => this.http.get<TrackRow[]>(`/api/jobs/${encodeURIComponent(jobId)}/tracks`),
+    ).pipe(map((rows) => rows.map(toJobTrack)));
   }
 
   downloadUrl(jobId: string, trackId: string): string {
