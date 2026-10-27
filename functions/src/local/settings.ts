@@ -13,9 +13,16 @@ export interface Settings {
   downloadDir: string;
 }
 
-/** O que o navegador pode ver: nunca inclui o client secret. */
+export interface SpotifyCredentials {
+  clientId: string;
+  clientSecret: string;
+}
+
+/** O que o navegador pode ver: nunca inclui o client secret nem dados das credenciais embutidas. */
 export interface PublicSettings {
   spotifyConfigured: boolean;
+  /** O executável traz credenciais próprias: as do usuário são opcionais. */
+  spotifyBuiltIn: boolean;
   spotifyClientId?: string;
   downloadDir: string;
 }
@@ -53,11 +60,15 @@ export function defaultPaths(system: {
 /** Configurações em JSON na pasta de dados do usuário. */
 export class SettingsStore {
   private current: Settings;
+  private readonly builtIn?: SpotifyCredentials;
 
   constructor(
     private readonly file: string,
     defaults: { downloadDir: string },
+    builtInSpotify?: SpotifyCredentials,
   ) {
+    if (builtInSpotify?.clientId && builtInSpotify.clientSecret)
+      this.builtIn = builtInSpotify;
     const saved = existsSync(file)
       ? (JSON.parse(readFileSync(file, "utf8")) as Partial<Settings>)
       : {};
@@ -68,10 +79,19 @@ export class SettingsStore {
     return { ...this.current };
   }
 
+  /** As do usuário (completas) têm prioridade sobre as embutidas no executável. */
+  spotifyCredentials(): SpotifyCredentials | undefined {
+    const { spotifyClientId, spotifyClientSecret } = this.current;
+    if (spotifyClientId && spotifyClientSecret)
+      return { clientId: spotifyClientId, clientSecret: spotifyClientSecret };
+    return this.builtIn;
+  }
+
   publicView(): PublicSettings {
-    const { spotifyClientId, spotifyClientSecret, downloadDir } = this.current;
+    const { spotifyClientId, downloadDir } = this.current;
     return {
-      spotifyConfigured: !!spotifyClientId && !!spotifyClientSecret,
+      spotifyConfigured: this.spotifyCredentials() !== undefined,
+      spotifyBuiltIn: this.builtIn !== undefined,
       ...(spotifyClientId ? { spotifyClientId } : {}),
       downloadDir,
     };

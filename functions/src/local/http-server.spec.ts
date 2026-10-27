@@ -71,6 +71,7 @@ describe("servidor local", () => {
     settings = {
       publicView: vi.fn(() => ({
         spotifyConfigured: false,
+        spotifyBuiltIn: false,
         downloadDir: "/m",
       })),
       update: vi.fn(),
@@ -194,6 +195,7 @@ describe("servidor local", () => {
       expect(reply.status).toBe(200);
       expect(json(reply)).toEqual({
         spotifyConfigured: false,
+        spotifyBuiltIn: false,
         downloadDir: "/m",
       });
     });
@@ -217,6 +219,7 @@ describe("servidor local", () => {
       });
       expect(json(reply)).toEqual({
         spotifyConfigured: false,
+        spotifyBuiltIn: false,
         downloadDir: "/m",
       });
     });
