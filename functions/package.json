@@ -16,7 +16,8 @@
     "serve": "npm run build && firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions:music-downloader",
     "gcp-build": "bash scripts/fetch-binaries.sh",
-    "test:emulators": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-music-downloader 'vitest run -c vitest.emulator.config.ts'"
+    "test:emulators": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-music-downloader 'vitest run -c vitest.emulator.config.ts'",
+    "build:executable": "node --env-file-if-exists=.secret.local scripts/build-executable.ts"
   },
   "dependencies": {
     "firebase-admin": "^14.5.0",
