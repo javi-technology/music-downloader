@@ -102,6 +102,29 @@ describe("TrackQueue com faixa que continua pendente após erro", () => {
 });
 
 describe("jobFolder", () => {
+  it("não pega faixas enquanto não pode processar e retoma no notify seguinte", async () => {
+    const repository = fakeRepository([pending("000")]);
+    const process = vi.fn().mockResolvedValue(undefined);
+    let ready = false;
+    const queue = new TrackQueue({
+      repository,
+      process,
+      canProcess: () => ready,
+    });
+
+    queue.start();
+    await queue.idle();
+
+    expect(repository.nextPendingTrack).not.toHaveBeenCalled();
+    expect(process).not.toHaveBeenCalled();
+
+    ready = true;
+    queue.notify();
+    await queue.idle();
+
+    expect(process).toHaveBeenCalledOnce();
+  });
+
   it("usa o título do álbum/playlist como pasta", () => {
     expect(jobFolder("After Hours")).toBe("After Hours");
   });
