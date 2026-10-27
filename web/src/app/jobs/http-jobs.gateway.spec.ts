@@ -134,6 +134,38 @@ describe('HttpJobsGateway', () => {
     expect(received).toHaveLength(2);
   });
 
+  it('uma falha ao listar os jobs não encerra o acompanhamento: a reconexão busca de novo', () => {
+    const received: DownloadJob[][] = [];
+    let failed = false;
+    gateway.watchJobs().subscribe({
+      next: (jobs) => received.push(jobs),
+      error: () => (failed = true),
+    });
+
+    http.expectOne('/api/jobs').flush('falhou', { status: 500, statusText: 'Erro' });
+    events.emit({ type: 'open' });
+    http.expectOne('/api/jobs').flush([jobRow]);
+
+    expect(failed).toBe(false);
+    expect(received.map((jobs) => jobs.length)).toEqual([1]);
+  });
+
+  it('uma falha ao listar as faixas não encerra o acompanhamento: o próximo evento busca de novo', () => {
+    const received: JobTrack[][] = [];
+    let failed = false;
+    gateway.watchTracks('j1').subscribe({
+      next: (tracks) => received.push(tracks),
+      error: () => (failed = true),
+    });
+
+    http.expectOne('/api/jobs/j1/tracks').flush('falhou', { status: 500, statusText: 'Erro' });
+    events.emit({ type: 'job', jobId: 'j1' });
+    http.expectOne('/api/jobs/j1/tracks').flush([trackRow]);
+
+    expect(failed).toBe(false);
+    expect(received.map((tracks) => tracks.length)).toEqual([1]);
+  });
+
   it('monta o link do MP3 servido pelo app', () => {
     expect(gateway.downloadUrl('j 1', '000')).toBe('/api/jobs/j%201/tracks/000/file');
   });

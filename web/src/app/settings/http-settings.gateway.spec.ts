@@ -1,16 +1,24 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { fakeServerEvents } from '../testing/fake-server-events';
 import { HttpSettingsGateway } from './http-settings.gateway';
 import { AppSettings } from './settings.model';
 
 describe('HttpSettingsGateway', () => {
   let gateway: HttpSettingsGateway;
   let http: HttpTestingController;
+  let events: ReturnType<typeof fakeServerEvents>;
 
   beforeEach(() => {
+    events = fakeServerEvents();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), HttpSettingsGateway],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        events.provider,
+        HttpSettingsGateway,
+      ],
     });
     gateway = TestBed.inject(HttpSettingsGateway);
     http = TestBed.inject(HttpTestingController);
@@ -35,6 +43,25 @@ describe('HttpSettingsGateway', () => {
       downloadDir: '/m',
     });
     expect(received.map((settings) => settings.spotifyConfigured)).toEqual([false, true]);
+  });
+
+  it('recarrega na reconexão, inclusive depois de uma falha', () => {
+    const received: AppSettings[] = [];
+    let failed = false;
+    gateway.watchSettings().subscribe({
+      next: (settings) => received.push(settings),
+      error: () => (failed = true),
+    });
+
+    http.expectOne('/api/settings').flush('falhou', { status: 500, statusText: 'Erro' });
+    events.emit({ type: 'job', jobId: 'j' });
+    events.emit({ type: 'open' });
+    http
+      .expectOne('/api/settings')
+      .flush({ spotifyConfigured: true, spotifyBuiltIn: false, downloadDir: '/m' });
+
+    expect(failed).toBe(false);
+    expect(received.map((settings) => settings.downloadDir)).toEqual(['/m']);
   });
 
   it('não envia campos vazios (mantém o valor salvo)', async () => {
