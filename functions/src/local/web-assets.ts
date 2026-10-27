@@ -1,5 +1,5 @@
 import { readFileSync, statSync } from "node:fs";
-import { extname, isAbsolute, relative, resolve } from "node:path";
+import { extname, isAbsolute, relative, resolve, sep } from "node:path";
 
 /** Arquivos do build do Angular, pelo caminho relativo (`index.html`, `main-ABC.js`). */
 export interface WebAssets {
@@ -34,9 +34,10 @@ export function directoryAssets(root: string): WebAssets {
     get(path) {
       const file = resolve(base, path);
       const inside = relative(base, file);
-      // Outro drive no Windows dá um caminho absoluto; `..` sai da pasta.
-      if (!inside || inside.startsWith("..") || isAbsolute(inside))
-        return undefined;
+      // Só o segmento `..` sai da pasta; outro drive no Windows dá um caminho absoluto.
+      const escapes =
+        inside === ".." || inside.startsWith(`..${sep}`) || isAbsolute(inside);
+      if (!inside || escapes) return undefined;
       try {
         return statSync(file).isFile() ? readFileSync(file) : undefined;
       } catch {
