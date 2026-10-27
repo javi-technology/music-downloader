@@ -54,6 +54,7 @@ music-downloader/
 │   │   ├── http/           # Mapeamento de erros de domínio → HttpsError
 │   │   └── **/*.spec.ts    # Testes ao lado do código testado
 │   ├── scripts/fetch-binaries.sh  # Baixa yt-dlp/ffmpeg no build da função (`gcp-build`)
+│   ├── scripts/build-executable.ts # Gera o executável do app local (esbuild + Node SEA)
 │   └── vitest.config.ts
 └── web/                    # Frontend — Angular + Tailwind
     ├── proxy.conf.json     # `ng serve`: encaminha /api para o servidor local
@@ -84,7 +85,20 @@ usuário e é usado pelo navegador). Enquanto a migração não termina, os dois
   do sistema) e atualiza o yt-dlp com mais de 7 dias. Ferramentas já presentes no PATH são reaproveitadas.
   O **deno** é obrigatório: o yt-dlp o usa (`--js-runtimes`) para resolver os desafios do YouTube.
 - Rodar: `npm --prefix functions run local` (variáveis opcionais: `MD_PORT`, `MD_DATA_DIR`,
-  `MD_ALLOWED_ORIGINS`) e, em outro terminal, `npm --prefix web start` (o proxy leva `/api` para a porta 47823).
+  `MD_ALLOWED_ORIGINS`, `MD_WEB_DIR` para servir um build do web, `MD_NO_BROWSER`) e, em outro terminal,
+  `npm --prefix web start` (o proxy leva `/api` para a porta 47823).
+- Credenciais do Spotify **embutidas**: `MUSIC_DOWNLOADER_SPOTIFY_CLIENT_ID`/`_SECRET` vêm de
+  `functions/.secret.local` (local) ou dos secrets do GitHub (release) e o esbuild as grava no executável.
+  As do usuário (Configurações) têm prioridade. Nunca commite os valores; o navegador nunca recebe nada delas
+  (`/api/settings` só informa `spotifyBuiltIn`).
+- Executável: `npm --prefix functions run build:executable` gera `functions/dist-exe/music-downloader-<sistema>-<arch>`
+  (requer **Node >= 25.5** por causa do `node --build-sea`). O site vai embutido como asset do SEA
+  (`web-assets.ts`); `main.ts` não pode ter top-level await (o bundle é CommonJS). Ao abrir, o app sobe na
+  porta 47823 e abre o navegador; se já houver uma instância (`GET /api/health`), só abre o navegador.
+- Release: o workflow `.github/workflows/executables.yml` testa e gera os executáveis (macOS arm64/x64,
+  Windows x64, Linux x64/arm64) em todo PR e, numa tag `v*`, publica no release **com** as credenciais
+  embutidas (em PR, sem: artefatos de PR de repositório público são baixáveis). Os binários não são assinados:
+  no macOS, o usuário libera em Ajustes > Privacidade e Segurança > "Abrir Mesmo Assim".
 
 ## Arquitetura do backend
 
