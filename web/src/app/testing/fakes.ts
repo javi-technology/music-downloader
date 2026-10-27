@@ -32,6 +32,7 @@ export class FakeToolsGateway extends ToolsGateway {
 export function makeSettings(overrides: Partial<AppSettings> = {}): AppSettings {
   return {
     spotifyConfigured: true,
+    spotifyBuiltIn: false,
     spotifyClientId: 'client-id',
     downloadDir: '/Users/ana/Music/Music Downloader',
     ...overrides,

@@ -54,6 +54,39 @@ describe('SettingsPage', () => {
     expect(input(fixture, 'clientSecret').placeholder).not.toContain('salvo');
   });
 
+  describe('app com credenciais do Spotify embutidas', () => {
+    const builtIn = (own: Partial<Parameters<typeof makeSettings>[0]> = {}) =>
+      render(() =>
+        gateway.settings$.next(
+          makeSettings({
+            spotifyConfigured: true,
+            spotifyBuiltIn: true,
+            spotifyClientId: undefined,
+            ...own,
+          }),
+        ),
+      );
+
+    it('avisa que preencher as credenciais é opcional', async () => {
+      const fixture = await builtIn();
+
+      expect(el(fixture).textContent).toContain('já vem com credenciais do Spotify');
+      expect(el(fixture).querySelector('details')!.open).toBe(false);
+    });
+
+    it('sem credenciais próprias, o secret não aparece como salvo', async () => {
+      const fixture = await builtIn();
+
+      expect(input(fixture, 'clientSecret').placeholder).not.toContain('salvo');
+    });
+
+    it('com credenciais próprias salvas, o secret aparece como salvo', async () => {
+      const fixture = await builtIn({ spotifyClientId: 'meu-id' });
+
+      expect(input(fixture, 'clientSecret').placeholder).toContain('salvo');
+    });
+  });
+
   it('salva, confirma e limpa o campo do secret', async () => {
     const fixture = await render();
     await type(fixture, 'clientId', 'novo-id');
