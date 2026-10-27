@@ -8,6 +8,12 @@
     <fieldset class="space-y-4 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
       <legend class="px-1 text-sm font-semibold">Spotify</legend>
 
+      @if (settings()?.spotifyBuiltIn) {
+        <p class="text-sm text-zinc-400">
+          O app já vem com credenciais do Spotify. Preencha só se quiser usar as suas.
+        </p>
+      }
+
       <details class="text-sm text-zinc-300" [open]="settings()?.spotifyConfigured === false">
         <summary class="cursor-pointer text-emerald-400">
           Como conseguir o Client ID e o Secret
@@ -62,7 +68,7 @@
           autocomplete="off"
           class="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 font-mono text-sm placeholder:text-zinc-500 focus:border-emerald-500 focus:outline-none"
           [placeholder]="
-            settings()?.spotifyConfigured ? '•••••••• (salvo; deixe vazio para manter)' : ''
+            settings()?.spotifyClientId ? '•••••••• (salvo; deixe vazio para manter)' : ''
           "
           [value]="clientSecret()"
           (input)="clientSecret.set($any($event.target).value)"
