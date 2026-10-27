@@ -18,6 +18,7 @@ import {
 } from "./settings.js";
 import type { JobView, TrackView } from "./sqlite-job-repository.js";
 import type { ToolsStatus } from "./tools/tool-manager.js";
+import { type WebAssets, contentTypeFor } from "./web-assets.js";
 
 export class SpotifyNotConfiguredError extends Error {
   constructor() {
@@ -54,6 +55,8 @@ export interface LocalServerDeps {
   feed: ChangeFeed;
   /** Origens extras aceitas além da própria (ex.: `ng serve` em desenvolvimento). */
   allowedOrigins?: string[];
+  /** Build do Angular; sem ele (desenvolvimento com `ng serve`), o servidor só atende a API. */
+  web?: WebAssets;
 }
 
 class HttpError extends Error {
@@ -101,7 +104,8 @@ async function handle(
 
   const path = new URL(req.url ?? "/", "http://localhost").pathname;
   const segments = path.split("/").filter(Boolean).map(decodeURIComponent);
-  if (segments[0] !== "api") throw new HttpError(404, "Não encontrado");
+  if (segments[0] !== "api")
+    return sendWebAsset(res, method, segments, deps.web);
   const route = segments.slice(1);
 
   if (route[0] === "settings" && route.length === 1) {
@@ -226,6 +230,35 @@ async function sendTrackFile(
     "Content-Disposition": attachmentDisposition(basename(path)),
   });
   createReadStream(path).pipe(res);
+}
+
+/** Arquivos do build têm hash no nome; rotas do app (sem extensão) recebem o `index.html`. */
+function sendWebAsset(
+  res: ServerResponse,
+  method: string,
+  segments: string[],
+  web: WebAssets | undefined,
+): void {
+  if (method !== "GET" && method !== "HEAD")
+    throw new HttpError(405, "Método não permitido");
+
+  const path = segments.join("/") || "index.html";
+  const isFile = /\.[a-z0-9]+$/i.test(path);
+  const target = isFile ? path : "index.html";
+  const content = web?.get(target);
+  if (!content) throw new HttpError(404, "Não encontrado");
+
+  res.writeHead(200, {
+    "Content-Type": contentTypeFor(target),
+    "Content-Length": content.length,
+    "Cache-Control":
+      target === "index.html"
+        ? "no-cache"
+        : "public, max-age=31536000, immutable",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+  });
+  res.end(content);
 }
 
 function streamEvents(
