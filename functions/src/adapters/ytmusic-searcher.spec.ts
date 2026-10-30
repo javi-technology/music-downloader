@@ -1,34 +1,87 @@
 import { describe, expect, it, vi } from "vitest";
 import { YTMusicSearcher } from "./ytmusic-searcher.js";
 
-const songItem = {
-  type: "SONG" as const,
-  videoId: "s1",
-  name: "Blinding Lights",
-  artist: { artistId: "a", name: "The Weeknd" },
-  album: { albumId: "al", name: "After Hours" },
-  duration: 200,
-  thumbnails: [],
-};
-const videoItem = {
-  type: "VIDEO" as const,
-  videoId: "v1",
-  name: "The Weeknd - Blinding Lights (Official Video)",
-  artist: { artistId: "a", name: "The Weeknd" },
-  duration: 263,
-  thumbnails: [],
-};
+const SONGS = "Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo%3D";
+const VIDEOS = "Eg-KAQwIABABGAAgACgAMABqChAEEAMQCRAFEAo%3D";
 
-function makeApi() {
+type Run = string | [text: string, pageType: string];
+
+const ARTIST = "MUSIC_PAGE_TYPE_ARTIST";
+const ALBUM = "MUSIC_PAGE_TYPE_ALBUM";
+const CHANNEL = "MUSIC_PAGE_TYPE_USER_CHANNEL";
+
+function run(value: Run) {
+  if (typeof value === "string") return { text: value };
+  const [text, pageType] = value;
+  return {
+    text,
+    navigationEndpoint: {
+      browseEndpoint: {
+        browseId: `id-${text}`,
+        browseEndpointContextSupportedConfigs: {
+          browseEndpointContextMusicConfig: { pageType },
+        },
+      },
+    },
+  };
+}
+
+/** Item no formato da resposta bruta do YouTube Music (`musicResponsiveListItemRenderer`). */
+function item(videoId: string, name: string, subtitle: Run[]) {
+  return {
+    musicResponsiveListItemRenderer: {
+      flexColumns: [[name], subtitle, ["1M plays"]].map((runs) => ({
+        musicResponsiveListItemFlexColumnRenderer: {
+          text: { runs: runs.map(run) },
+        },
+      })),
+      playlistItemData: { videoId },
+    },
+  };
+}
+
+function response(...items: unknown[]) {
+  return {
+    contents: {
+      tabbedSearchResultsRenderer: {
+        tabs: [
+          {
+            tabRenderer: {
+              content: {
+                sectionListRenderer: {
+                  contents: [{ musicShelfRenderer: { contents: items } }],
+                },
+              },
+            },
+          },
+        ],
+      },
+    },
+  };
+}
+
+const songItem = item("s1", "Blinding Lights", [
+  ["The Weeknd", ARTIST],
+  " • ",
+  ["After Hours", ALBUM],
+  " • ",
+  "3:20",
+]);
+const videoItem = item("v1", "The Weeknd - Blinding Lights (Official Video)", [
+  ["The Weeknd", ARTIST],
+  " • ",
+  "1B views",
+  " • ",
+  "4:23",
+]);
+
+function makeApi(songs: unknown[] = [songItem], videos: unknown[] = [videoItem]) {
   return {
     initialize: vi.fn().mockResolvedValue(undefined),
-    searchSongs: vi
-      .fn()
-      .mockResolvedValue([
-        songItem,
-        { ...songItem, videoId: "s2", duration: null },
-      ]),
-    searchVideos: vi.fn().mockResolvedValue([videoItem]),
+    constructRequest: vi.fn(
+      async (_endpoint: string, body: Record<string, unknown>) =>
+        body.params === SONGS ? response(...songs) : response(...videos),
+    ),
   };
 }
 
@@ -41,7 +94,20 @@ describe("YTMusicSearcher", () => {
     expect(api.initialize).toHaveBeenCalledTimes(1);
   });
 
-  it("combina músicas (verificadas) e vídeos, ignorando itens sem duração", async () => {
+  it("busca com os filtros de músicas e de vídeos", async () => {
+    const api = makeApi();
+    await new YTMusicSearcher(api).search("The Weeknd - Blinding Lights");
+    expect(api.constructRequest).toHaveBeenCalledWith("search", {
+      query: "The Weeknd - Blinding Lights",
+      params: SONGS,
+    });
+    expect(api.constructRequest).toHaveBeenCalledWith("search", {
+      query: "The Weeknd - Blinding Lights",
+      params: VIDEOS,
+    });
+  });
+
+  it("combina músicas (verificadas) e vídeos", async () => {
     const searcher = new YTMusicSearcher(makeApi());
     expect(await searcher.search("The Weeknd - Blinding Lights")).toEqual([
       {
@@ -62,16 +128,79 @@ describe("YTMusicSearcher", () => {
     ]);
   });
 
-  it('separa artistas concatenados ("A & B", "A, B")', async () => {
-    const api = makeApi();
-    api.searchSongs.mockResolvedValue([
-      {
-        ...songItem,
-        artist: { artistId: null, name: "Daft Punk & The Weeknd, Kavinsky" },
-      },
-    ]);
-    api.searchVideos.mockResolvedValue([]);
+  it("ignora itens sem duração", async () => {
+    const api = makeApi(
+      [item("s2", "Blinding Lights", [["The Weeknd", ARTIST]])],
+      [],
+    );
+    expect(await new YTMusicSearcher(api).search("q")).toEqual([]);
+  });
+
+  it("lê o artista sem página de artista (sem confundi-lo com o álbum)", async () => {
+    const api = makeApi(
+      [
+        item("_udBTipMd5k", "The Night We Met", [
+          "Joni Fuller",
+          " • ",
+          ["Bridgerton Season Four (Covers from the Netflix Series)", ALBUM],
+          " • ",
+          "3:29",
+        ]),
+      ],
+      [],
+    );
     const [result] = await new YTMusicSearcher(api).search("q");
-    expect(result.artists).toEqual(["Daft Punk", "The Weeknd", "Kavinsky"]);
+    expect(result).toMatchObject({
+      artists: ["Joni Fuller"],
+      album: "Bridgerton Season Four (Covers from the Netflix Series)",
+      durationSeconds: 209,
+    });
+  });
+
+  it("traz todos os artistas da faixa, mantendo nomes com & inteiros", async () => {
+    const api = makeApi(
+      [
+        item("s3", "Get Lucky", [
+          ["Daft Punk", ARTIST],
+          ", ",
+          ["Pharrell Williams", ARTIST],
+          " & ",
+          ["Simon & Garfunkel", ARTIST],
+          " • ",
+          ["Random Access Memories", ALBUM],
+          " • ",
+          "6:10",
+        ]),
+      ],
+      [],
+    );
+    const [result] = await new YTMusicSearcher(api).search("q");
+    expect(result.artists).toEqual([
+      "Daft Punk",
+      "Pharrell Williams",
+      "Simon & Garfunkel",
+    ]);
+  });
+
+  it("usa o canal como artista dos vídeos", async () => {
+    const api = makeApi(
+      [],
+      [
+        item("TPjGEoO_6YI", "The Night We Met - Joni Fuller", [
+          ["Capitol Records", CHANNEL],
+          " • ",
+          "1M views",
+          " • ",
+          "1:02:03",
+        ]),
+      ],
+    );
+    const [result] = await new YTMusicSearcher(api).search("q");
+    expect(result).toMatchObject({
+      videoId: "TPjGEoO_6YI",
+      artists: ["Capitol Records"],
+      durationSeconds: 3723,
+      verified: false,
+    });
   });
 });
