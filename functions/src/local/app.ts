@@ -4,10 +4,12 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import YTMusic from "ytmusic-api";
 import { Id3Tagger } from "../adapters/id3-tagger.js";
 import { YtDlpDownloader } from "../adapters/ytdlp-downloader.js";
-import { YTMusicSearcher } from "../adapters/ytmusic-searcher.js";
+import {
+  YTMusicSearcher,
+  createYTMusicApi,
+} from "../adapters/ytmusic-searcher.js";
 import type { Song } from "../domain/types.js";
 import type { SongSource } from "../jobs/types.js";
 import { createDownloadJob, runTrack } from "../jobs/use-cases.js";
@@ -174,7 +176,7 @@ function downloadSong(paths: {
   tools: () => ToolPaths;
   downloadDir: () => string;
 }): NonNullable<LocalAppOptions["processSong"]> {
-  const searcher = new YTMusicSearcher(new YTMusic());
+  const searcher = new YTMusicSearcher(createYTMusicApi());
   const tagger = new Id3Tagger();
   const storage = new LocalFileStorage(paths.downloadDir);
 

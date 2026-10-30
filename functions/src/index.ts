@@ -9,7 +9,6 @@ import { setGlobalOptions } from "firebase-functions/v2";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
-import YTMusic from "ytmusic-api";
 import { resolveBinary } from "./adapters/binaries.js";
 import {
   FirestoreJobRepository,
@@ -18,7 +17,10 @@ import {
 import { GcsFileStorage } from "./adapters/gcs-file-storage.js";
 import { Id3Tagger } from "./adapters/id3-tagger.js";
 import { YtDlpDownloader } from "./adapters/ytdlp-downloader.js";
-import { YTMusicSearcher } from "./adapters/ytmusic-searcher.js";
+import {
+  YTMusicSearcher,
+  createYTMusicApi,
+} from "./adapters/ytmusic-searcher.js";
 import {
   COLLECTIONS,
   FIRESTORE_DATABASE_ID,
@@ -99,7 +101,7 @@ export const mdProcessTrack = onDocumentCreated(
           repository,
           process: (song, destinationDir) =>
             processTrack(song, destinationDir, {
-              searcher: new YTMusicSearcher(new YTMusic()),
+              searcher: new YTMusicSearcher(createYTMusicApi()),
               downloader: new YtDlpDownloader({
                 ytDlpPath: resolveBinary("yt-dlp", { binDir }),
                 ffmpegPath: resolveBinary("ffmpeg", { binDir }),
