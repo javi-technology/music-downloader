@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { YTMusicSearcher } from "./ytmusic-searcher.js";
+import { YTMusicSearcher, createYTMusicApi } from "./ytmusic-searcher.js";
 
 const SONGS = "Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo%3D";
 const VIDEOS = "Eg-KAQwIABABGAAgACgAMABqChAEEAMQCRAFEAo%3D";
@@ -27,10 +27,15 @@ function run(value: Run) {
 }
 
 /** Item no formato da resposta bruta do YouTube Music (`musicResponsiveListItemRenderer`). */
-function item(videoId: string, name: string, subtitle: Run[]) {
+function item(
+  videoId: string,
+  name: string,
+  subtitle: Run[],
+  extra: Run[] = ["1M plays"],
+) {
   return {
     musicResponsiveListItemRenderer: {
-      flexColumns: [[name], subtitle, ["1M plays"]].map((runs) => ({
+      flexColumns: [[name], subtitle, extra].map((runs) => ({
         musicResponsiveListItemFlexColumnRenderer: {
           text: { runs: runs.map(run) },
         },
@@ -205,5 +210,25 @@ describe("YTMusicSearcher", () => {
       durationSeconds: 3723,
       verified: false,
     });
+  });
+
+  it("procura a duração também nas demais colunas", async () => {
+    const api = makeApi(
+      [item("s1", "Blinding Lights", [["The Weeknd", ARTIST]], ["3:20"])],
+      [],
+    );
+    const [result] = await new YTMusicSearcher(api).search("q");
+    expect(result).toMatchObject({
+      artists: ["The Weeknd"],
+      durationSeconds: 200,
+    });
+  });
+});
+
+describe("createYTMusicApi", () => {
+  it("expõe a requisição bruta do ytmusic-api (método interno da biblioteca)", () => {
+    const api = createYTMusicApi();
+    expect(api.initialize).toBeTypeOf("function");
+    expect(api.constructRequest).toBeTypeOf("function");
   });
 });
