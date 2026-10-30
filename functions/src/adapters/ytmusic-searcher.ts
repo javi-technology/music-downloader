@@ -77,15 +77,18 @@ function listItems(data: unknown): ListItem[] {
 
 /**
  * A 1ª coluna traz o título; a 2ª, "artistas • álbum (ou visualizações) • duração". Os artistas
- * são os textos antes do primeiro "•", com ou sem link para a página de artista.
+ * são os textos antes do primeiro "•", com ou sem link para a página de artista. A duração pode
+ * vir em qualquer coluna após o título, como no `ytmusicapi`; a do subtítulo tem prioridade.
  */
 function toResult(item: ListItem, verified: boolean): SearchResult | null {
-  const [title = [], subtitle = []] = (item.flexColumns ?? []).map(
+  const [title = [], subtitle = [], ...others] = (item.flexColumns ?? []).map(
     (column) =>
       column.musicResponsiveListItemFlexColumnRenderer?.text?.runs ?? [],
   );
   const videoId = item.playlistItemData?.videoId;
-  const duration = subtitle.findLast((run) => DURATION.test(run.text.trim()));
+  const duration = [...others.flat(), ...subtitle].findLast((run) =>
+    DURATION.test(run.text.trim()),
+  );
   if (!videoId || !title[0] || !duration) return null;
 
   const firstDot = subtitle.findIndex((run) => run.text.trim() === "•");
