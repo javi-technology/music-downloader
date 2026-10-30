@@ -75,7 +75,10 @@ const videoItem = item("v1", "The Weeknd - Blinding Lights (Official Video)", [
   "4:23",
 ]);
 
-function makeApi(songs: unknown[] = [songItem], videos: unknown[] = [videoItem]) {
+function makeApi(
+  songs: unknown[] = [songItem],
+  videos: unknown[] = [videoItem],
+) {
   return {
     initialize: vi.fn().mockResolvedValue(undefined),
     constructRequest: vi.fn(
